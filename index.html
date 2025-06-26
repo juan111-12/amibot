@@ -1167,7 +1167,7 @@
             // Different emoji sets and grid sizes based on education level
             const emojis = userEducation === 'primaria' ? 
                 ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕'] : // 8 unique, 16 cards for 4x4
-                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
+                ['😀', '�', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
             
             const gameEmojis = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
             // Adjust grid columns based on number of emojis and screen width
@@ -1642,7 +1642,7 @@
             document.getElementById('gameHeaderTitle').textContent = "Tres en Raya";
 
             let board = ['', '', '', '', '', '', '', '', ''];
-            let currentPlayer = 'X';
+            let currentPlayer = 'X'; // Human player
             let gameActive = true;
 
             const winConditions = [
@@ -1651,42 +1651,153 @@
                 [0, 4, 8], [2, 4, 6]             // Diagonals
             ];
 
-            const checkWin = () => {
+            const checkWin = (currentBoard, player) => {
                 for (let i = 0; i < winConditions.length; i++) {
                     const [a, b, c] = winConditions[i];
-                    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                        gameActive = false;
-                        document.getElementById('ticTacToeGrid').children[a].classList.add('winner');
-                        document.getElementById('ticTacToeGrid').children[b].classList.add('winner');
-                        document.getElementById('ticTacToeGrid').children[c].classList.add('winner');
-                        showCustomModal(`¡${board[a]} ha ganado! 🎉`);
+                    if (currentBoard[a] === player && currentBoard[b] === player && currentBoard[c] === player) {
                         return true;
                     }
                 }
                 return false;
             };
 
-            const checkDraw = () => {
-                if (!board.includes('') && !checkWin()) {
-                    gameActive = false;
-                    showCustomModal("¡Es un empate! 🤝");
-                    return true;
-                }
-                return false;
+            const checkDraw = (currentBoard) => {
+                return !currentBoard.includes('');
+            };
+
+            const disableBoardClicks = () => {
+                document.querySelectorAll('.tic-tac-toe-cell').forEach(cell => {
+                    cell.style.pointerEvents = 'none';
+                });
+            };
+
+            const enableBoardClicks = () => {
+                document.querySelectorAll('.tic-tac-toe-cell').forEach(cell => {
+                    cell.style.pointerEvents = 'auto';
+                });
             };
 
             const handleCellClick = (index) => {
                 if (!gameActive || board[index] !== '') return;
 
+                // Human player move
                 board[index] = currentPlayer;
                 document.getElementById('ticTacToeGrid').children[index].textContent = currentPlayer;
                 document.getElementById('ticTacToeGrid').children[index].classList.add(currentPlayer.toLowerCase());
 
-                if (!checkWin() && !checkDraw()) {
-                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                    document.getElementById('ticTacToeStatus').textContent = `Turno de ${currentPlayer}`;
-                } else {
-                    document.getElementById('ticTacToeStatus').textContent = `Juego Terminado.`;
+                if (checkWin(board, currentPlayer)) {
+                    gameActive = false;
+                    highlightWinningCells(currentPlayer);
+                    showCustomModal(`¡Felicidades, ${userName}! ¡Has ganado! 🎉`);
+                    disableBoardClicks();
+                    return;
+                }
+
+                if (checkDraw(board)) {
+                    gameActive = false;
+                    showCustomModal("¡Es un empate! 🤝");
+                    disableBoardClicks();
+                    return;
+                }
+
+                // Switch to AI player
+                currentPlayer = 'O'; // AI player
+                document.getElementById('ticTacToeStatus').textContent = `Turno de AmigoBot`;
+                disableBoardClicks(); // Disable clicks during AI turn
+                setTimeout(aiMove, 1000); // AI makes a move after a short delay
+            };
+
+            const aiMove = () => {
+                let bestMove = -1;
+
+                // 1. Check if AI can win
+                for (let i = 0; i < board.length; i++) {
+                    if (board[i] === '') {
+                        let tempBoard = [...board];
+                        tempBoard[i] = 'O';
+                        if (checkWin(tempBoard, 'O')) {
+                            bestMove = i;
+                            break;
+                        }
+                    }
+                }
+
+                // 2. Block player's winning move
+                if (bestMove === -1) {
+                    for (let i = 0; i < board.length; i++) {
+                        if (board[i] === '') {
+                            let tempBoard = [...board];
+                            tempBoard[i] = 'X';
+                            if (checkWin(tempBoard, 'X')) {
+                                bestMove = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Take center
+                if (bestMove === -1 && board[4] === '') {
+                    bestMove = 4;
+                }
+
+                // 4. Take a corner
+                if (bestMove === -1) {
+                    const corners = [0, 2, 6, 8];
+                    for (let i = 0; i < corners.length; i++) {
+                        if (board[corners[i]] === '') {
+                            bestMove = corners[i];
+                            break;
+                        }
+                    }
+                }
+
+                // 5. Take any available spot
+                if (bestMove === -1) {
+                    const availableSpots = [];
+                    for (let i = 0; i < board.length; i++) {
+                        if (board[i] === '') {
+                            availableSpots.push(i);
+                        }
+                    }
+                    bestMove = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+                }
+
+                if (bestMove !== -1) {
+                    board[bestMove] = 'O';
+                    document.getElementById('ticTacToeGrid').children[bestMove].textContent = 'O';
+                    document.getElementById('ticTacToeGrid').children[bestMove].classList.add('o');
+                }
+
+                if (checkWin(board, currentPlayer)) {
+                    gameActive = false;
+                    highlightWinningCells(currentPlayer);
+                    showCustomModal(`¡AmigoBot ha ganado! 🤖`);
+                    disableBoardClicks();
+                    return;
+                }
+
+                if (checkDraw(board)) {
+                    gameActive = false;
+                    showCustomModal("¡Es un empate! 🤝");
+                    disableBoardClicks();
+                    return;
+                }
+
+                currentPlayer = 'X'; // Switch back to human player
+                document.getElementById('ticTacToeStatus').textContent = `Turno de ${userName}`;
+                enableBoardClicks(); // Enable clicks for human player
+            };
+
+            const highlightWinningCells = (player) => {
+                for (let i = 0; i < winConditions.length; i++) {
+                    const [a, b, c] = winConditions[i];
+                    if (board[a] === player && board[a] === board[b] && board[a] === board[c]) {
+                        document.getElementById('ticTacToeGrid').children[a].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[b].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[c].classList.add('winner');
+                        break;
+                    }
                 }
             };
 
@@ -1694,17 +1805,18 @@
                 board = ['', '', '', '', '', '', '', '', ''];
                 currentPlayer = 'X';
                 gameActive = true;
-                document.getElementById('ticTacToeStatus').textContent = `Turno de ${currentPlayer}`;
+                document.getElementById('ticTacToeStatus').textContent = `Turno de ${userName}`;
                 const cells = document.querySelectorAll('.tic-tac-toe-cell');
                 cells.forEach(cell => {
                     cell.textContent = '';
                     cell.classList.remove('x', 'o', 'winner');
                 });
+                enableBoardClicks();
             };
 
             area.innerHTML = `
-                <p class="game-description">Juega al clásico Tres en Raya contra un amigo.</p>
-                <div id="ticTacToeStatus" class="text-xl font-semibold mb-4 text-primary-dark">Turno de X</div>
+                <p class="game-description">Juega al clásico Tres en Raya contra AmigoBot.</p>
+                <div id="ticTacToeStatus" class="text-xl font-semibold mb-4 text-primary-dark">Turno de ${userName}</div>
                 <div id="ticTacToeGrid">
                     ${Array(9).fill().map((_, i) => `<div class="tic-tac-toe-cell" data-index="${i}"></div>`).join('')}
                 </div>
@@ -1830,3 +1942,4 @@
     </script>
 </body>
 </html>
+�
