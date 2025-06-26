@@ -355,12 +355,6 @@
             gap: 20px; margin-top: 20px; max-width: 700px; width: 100%;
             margin-left: auto; margin-right: auto;
         }
-        .achievement-card {
-            background-color: #e0e7ff; border-radius: 12px; padding: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.08); display: flex;
-            flex-direction: column; align-items: center; text-align: center;
-            border: 1px solid #c7d2fe; transition: transform 0.2s ease-in-out;
-        }
         .achievement-card.unlocked {
             background-color: var(--primary-light); border-color: var(--primary-main);
             box-shadow: 0 6px 12px rgba(0,0,0,0.15); transform: translateY(-3px);
@@ -451,6 +445,73 @@
         .tic-tac-toe-cell.o { color: var(--secondary-main); } /* Blue for O */
         .tic-tac-toe-cell.winner { background-color: #dcfce7; } /* Light green for winner */
 
+        /* Drawing Game Styles */
+        #drawingCanvas {
+            border: 2px solid var(--primary-dark);
+            background-color: #ffffff;
+            border-radius: 8px;
+            cursor: crosshair;
+            touch-action: none; /* Prevent scrolling/zooming on touch */
+            max-width: 100%;
+            height: auto; /* Maintain aspect ratio */
+        }
+        .drawing-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+        .drawing-controls input[type="color"] {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 0;
+            cursor: pointer;
+        }
+        .drawing-controls input[type="range"] {
+            width: 100px;
+            -webkit-appearance: none;
+            height: 8px;
+            background: var(--primary-light);
+            border-radius: 5px;
+            outline: none;
+            transition: opacity .2s;
+        }
+        .drawing-controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--secondary-main);
+            cursor: pointer;
+        }
+        .drawing-controls label {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            margin-left: 5px;
+        }
+        .drawing-mode-button {
+            background-color: var(--primary-main);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .drawing-mode-button.active {
+            background-color: var(--primary-dark);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .drawing-mode-button:hover:not(.active) {
+            background-color: var(--primary-dark);
+        }
+
 
         /* Media Queries for Responsiveness */
         @media (max-width: 768px) {
@@ -523,6 +584,19 @@
                 width: 80px;
                 height: 80px;
                 font-size: 3rem;
+            }
+
+            /* Drawing game responsiveness */
+            #drawingCanvas {
+                width: 100%; /* Make canvas full width on small screens */
+                height: 250px; /* Give it a fixed height or set dynamically */
+            }
+            .drawing-controls {
+                flex-direction: column; /* Stack controls vertically */
+                align-items: stretch;
+            }
+            .drawing-controls input[type="range"] {
+                width: 100%;
             }
         }
     </style>
@@ -616,12 +690,25 @@
                 <div id="gameContentArea" class="content-area"></div>
             </div>
 
-            <!-- Avatar Design View - REMOVED -->
+            <!-- Daily Activity View -->
+            <div id="mainDailyActivityView" class="main-view">
+                <div class="section-header">
+                    <h2>¿Qué hacer hoy?</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div id="dailyActivityContentArea" class="content-area"></div>
+            </div>
 
             <!-- Other Views -->
             <div id="mainTheoryView" class="main-view">
-                <div class="section-header"><h2>Material Teórico</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
-                <div id="theoryContentArea" class="content-area p-6 text-left"></div>
+                <!-- Header and content will be dynamic based on subject selection -->
+                <div id="theorySectionHeader" class="section-header">
+                    <h2 id="theoryHeaderTitle">Material Teórico</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div id="theoryContentArea" class="content-area p-6 text-left">
+                    <!-- Subject selection buttons will go here -->
+                </div>
             </div>
             
             <div id="mainStoriesView" class="main-view">
@@ -660,7 +747,8 @@
         let app, auth, db, userId = null, isAuthReady = false;
         let userName = sessionStorage.getItem('amigobotUserName');
         let userAge = sessionStorage.getItem('amigobotUserAge');
-        let userEducation = sessionStorage.getItem('amigobotUserEducation');
+        // Stores the user's estimated grade level (1-12)
+        let userGradeLevel = sessionStorage.getItem('amigobotUserGradeLevel'); 
         let hasGreetedInChat = false;
 
         // DOM Elements
@@ -691,6 +779,7 @@
                         case 'mainStoriesView': showStoriesArea(); break;
                         case 'mainAchievementsView': showAchievementsArea(); break;
                         case 'mainRelaxationView': showRelaxationOptions(); break;
+                        case 'mainDailyActivityView': showDailyActivityView(); break; // New case for daily activity
                     }
                 }
             }
@@ -701,7 +790,7 @@
             await initializeFirebase();
             document.getElementById('loadingAppMessage').style.display = 'none';
 
-            if (!userName || !userAge || !userEducation) {
+            if (!userName || !userAge || !userGradeLevel) {
                 showRegistrationForm();
             } else {
                 showFeatureCards();
@@ -758,7 +847,8 @@
                 { id: 'Stories', icon: '📚', title: 'Cuentos Mágicos', desc: 'Escucha historias fantásticas que te transportarán a mundos increíbles.', target: 'mainStoriesView' },
                 { id: 'Achievements', icon: '🏆', title: 'Mis Logros', desc: 'Mira todos los premios que has ganado y tu progreso.', target: 'mainAchievementsView' },
                 { id: 'Reminders', icon: '⏰', title: 'Recordatorios de Salud', desc: 'Te ayudo a recordar tus medicinas y citas médicas.', target: 'mainRemindersView' },
-                { id: 'Relax', icon: '❤️', title: 'Relajación y Ánimo', desc: 'Ejercicios de respiración y palabras de ánimo para cuando necesites calma.', target: 'mainRelaxationView' }
+                { id: 'Relax', icon: '❤️', title: 'Relajación y Ánimo', desc: 'Ejercicios de respiración y palabras de ánimo para cuando necesites calma.', target: 'mainRelaxationView' },
+                { id: 'DailyActivity', icon: '💡', title: '¿Qué hacer hoy?', desc: 'Recibe una sugerencia de actividad divertida y educativa.', target: 'mainDailyActivityView' } // New Feature
             ];
             cardsContainer.innerHTML = features.map(f => `
                 <div class="feature-card">
@@ -799,6 +889,25 @@
             closeButton.addEventListener('click', closeModal);
         }
 
+        /**
+         * Determines the user's estimated grade level based on age.
+         * Assumes:
+         * - Ages 4-5: Grade 1 (Kindergarten/early primary focus)
+         * - Ages 6-11: Primary Grades 1-6 (age - 5)
+         * - Ages 12-17: Secondary Grades 1-6 (which are total grades 7-12) (age - 5)
+         * - Age 18: Grade 12 (final year of secondary)
+         * @param {number} age - The user's age.
+         * @returns {number} The estimated grade level (1-12).
+         */
+        function getGradeLevel(age) {
+            if (age >= 4 && age <= 5) return 1; // Kindergarten / Pre-primary
+            if (age >= 6 && age <= 11) return age - 5; // Primary grades 1-6
+            if (age >= 12 && age <= 17) return age - 5; // Secondary grades 7-12 (Years 1-6 Secondary)
+            if (age >= 18) return 12; // Cap at final secondary year for 18+
+            return 1; // Default fallback for unexpected ages
+        }
+
+
         function showRegistrationForm() {
             const formHtml = `
                 <h2 class="text-2xl font-bold mb-4 text-indigo-700">¡Hola! Soy AmigoBot</h2>
@@ -835,12 +944,13 @@
                 if (name && age && !isNaN(age) && age >= 4 && age <= 18) {
                     userName = name;
                     userAge = age;
-                    // Determine userEducation based on age
-                    userEducation = (userAge <= 12) ? 'primaria' : 'secundaria';
+                    // Determine userGradeLevel based on age
+                    userGradeLevel = getGradeLevel(userAge);
                     
                     sessionStorage.setItem('amigobotUserName', userName);
                     sessionStorage.setItem('amigobotUserAge', String(userAge));
-                    sessionStorage.setItem('amigobotUserEducation', userEducation); // Store determined education level
+                    // Store the new userGradeLevel
+                    sessionStorage.setItem('amigobotUserGradeLevel', String(userGradeLevel)); 
                     modalBox.remove();
                     overlay.remove();
                     showFeatureCards();
@@ -864,23 +974,42 @@
          * Converts the given text to speech using the Web Speech API.
          * Adjusts rate and pitch for a friendlier tone.
          * @param {string} text - The text to be spoken.
+         * @param {boolean} isStory - Flag to indicate if it's a story, to allow more specific voice selection.
          */
-        function speak(text) {
+        function speak(text, isStory = false) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); // Stop any previous speech
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'es-ES'; // Set language to Spanish
-                utterance.rate = 0.95; // Slightly slower for a more friendly pace
-                utterance.pitch = 1.1; // Slightly higher pitch for a more friendly tone
 
-                // Optional: Try to select a specific voice if available
-                const voices = window.speechSynthesis.getVoices();
-                const friendlyVoice = voices.find(voice => voice.lang === 'es-ES' && voice.name.includes('Google') && !voice.name.includes('male')); // Prioritize a Google Spanish voice, preferably not explicitly male
-                if (friendlyVoice) {
-                    utterance.voice = friendlyVoice;
+                if (isStory) {
+                    // More delicate voice for stories
+                    utterance.rate = 0.8; // Slower rate
+                    utterance.pitch = 1.2; // Slightly higher pitch
                 } else {
-                    // Fallback to any Spanish voice if specific one not found
-                    utterance.voice = voices.find(voice => voice.lang === 'es-ES');
+                    // Default voice settings for chat
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.1;
+                }
+
+                // Try to select a specific voice if available
+                const voices = window.speechSynthesis.getVoices();
+                let selectedVoice = null;
+
+                if (isStory) {
+                    // Prioritize a female-sounding voice for stories if available
+                    selectedVoice = voices.find(voice => voice.lang === 'es-ES' && (voice.name.includes('Femenino') || voice.name.includes('female') || !voice.name.includes('male')));
+                }
+                
+                if (!selectedVoice) {
+                    // Fallback to any Spanish voice if specific one not found, or for non-story content
+                    selectedVoice = voices.find(voice => voice.lang === 'es-ES');
+                }
+
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                } else {
+                    console.warn('No suitable Spanish voice found, using default.');
                 }
 
                 window.speechSynthesis.speak(utterance);
@@ -907,9 +1036,9 @@
                 const voiceButton = document.createElement('button');
                 voiceButton.innerHTML = '🔊'; // Speaker icon
                 voiceButton.title = 'Escuchar mensaje';
-                voiceButton.onclick = () => speak(text); // Play speech on click
+                voiceButton.onclick = () => speak(text, false); // Play speech on click, not a story
                 messageElement.appendChild(voiceButton);
-                speak(text); // Automatically play bot message speech
+                speak(text, false); // Automatically play bot message speech
             }
 
             container.appendChild(messageElement);
@@ -932,7 +1061,7 @@
             mensajeBot.textContent = texto;
             chatMessages.appendChild(mensajeBot);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-            speak(texto); // Activate voice automatically
+            speak(texto, false); // Activate voice automatically, not a story
         }
         
         /**
@@ -958,7 +1087,7 @@
             btnVoz.textContent = '🔊';
             btnVoz.title = 'Escuchar respuesta';
             btnVoz.style.marginLeft = '8px';
-            btnVoz.onclick = () => speak(texto);
+            btnVoz.onclick = () => speak(texto, false);
 
             // Add text and button to the bot card
             mensajeBot.appendChild(textoRespuesta);
@@ -984,12 +1113,9 @@
             // Base instruction for list formatting
             const listFormattingInstruction = "Cuando respondas con una lista, asegúrate de que esté bien organizada, numerada (por ejemplo, '1. Primer elemento', '2. Segundo elemento') y sin caracteres especiales adicionales o desordenados (ej. guiones, asteriscos, etc. no usar emojis ni viñetas raras).";
 
-            if (userEducation === 'primaria') {
-                systemInstruction = `Eres AmigoBot, un robot muy amigable, divertido y paciente que habla con niños en un hospital. Tu mejor amigo se llama ${userName}, tiene ${userAge} años y está en primaria. Responde a su pregunta de forma sencilla, positiva, alentadora y juguetona. NO uses emojis en tus respuestas. ${listFormattingInstruction} La pregunta del niño es: "${message}"`;
-            } else { // secundaria
-                systemInstruction = `Eres AmigoBot, un asistente virtual compañero, inteligente y empático para adolescentes en un hospital. Estás chateando con ${userName}, de ${userAge} años, que está en secundaria. Responde a su pregunta de forma clara, directa, ofreciendo apoyo y un tono amigable e ingenioso. NO uses emojis en tus respuestas. ${listFormattingInstruction} La pregunta del adolescente es: "${message}"`;
-            }
-
+            // Updated system instruction to include userGradeLevel
+            systemInstruction = `Eres AmigoBot, un robot muy amigable, divertido y paciente que habla con niños y adolescentes en un hospital. Tu mejor amigo se llama ${userName}, tiene ${userAge} años y está en el grado ${userGradeLevel}. Adapta tus respuestas para su nivel de comprensión. Responde a su pregunta de forma sencilla, positiva, alentadora y juguetona si es de los primeros grados de primaria. Si es de grados más avanzados o secundaria, usa un tono más claro, directo y con un toque ingenioso. NO uses emojis en tus respuestas. ${listFormattingInstruction} La pregunta del usuario es: "${message}"`;
+            
             const chatHistory = [{ role: "user", parts: [{ text: systemInstruction }] }];
             const payload = { contents: chatHistory };
             const apiKey = ""; // La clave API se proporcionará en tiempo de ejecución por Canvas
@@ -1153,29 +1279,31 @@
                     <button id="historyGameButton" class="primary-button">Juego de Historia</button>
                     <button id="hangmanGameButton" class="primary-button">Juego del Ahorcado</button>
                     <button id="ticTacToeGameButton" class="primary-button">Tres en Raya</button>
+                    <button id="drawingGameButton" class="primary-button">Juego de Dibujo</button> <!-- New Drawing Game Button -->
                 </div>`;
             document.getElementById('memoryGameButton').onclick = createMemoryGame;
             document.getElementById('mathGameButton').onclick = createMathGame;
             document.getElementById('historyGameButton').onclick = createHistoryGame;
             document.getElementById('hangmanGameButton').onclick = createHangmanGame;
             document.getElementById('ticTacToeGameButton').onclick = createTicTacToeGame;
+            document.getElementById('drawingGameButton').onclick = createDrawingGame; // Link to new drawing game
         }
 
         function createMemoryGame() {
             const area = document.getElementById('gameContentArea');
             document.getElementById('gameHeaderTitle').textContent = "Juego de Memoria";
             // Different emoji sets and grid sizes based on education level
-            const emojis = userEducation === 'primaria' ? 
+            const emojis = (userGradeLevel <= 6) ? 
                 ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕'] : // 8 unique, 16 cards for 4x4
-                ['😀', '�', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
+                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
             
             const gameEmojis = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
             // Adjust grid columns based on number of emojis and screen width
             let gridCols;
-            if (userEducation === 'primaria') {
+            if (userGradeLevel <= 6) {
                 gridCols = 4; // 4x4 grid for 16 cards
             } else {
-                // For secundaria (24 cards), try 6 columns if wide enough, otherwise 4 or 5
+                // For secondary (24 cards), try 6 columns if wide enough, otherwise 4 or 5
                 gridCols = (window.innerWidth >= 768) ? 6 : ((window.innerWidth >= 500) ? 5 : 4);
                 // Ensure gridCols * num_rows >= gameEmojis.length. For 24 cards, 4x6 or 6x4.
                 // If gridCols is 5, it would be 5xsomething which is not ideal, so stick to 4 or 6.
@@ -1257,13 +1385,15 @@
                 }
 
                 let num1, num2, op, answer;
-                if (userEducation === 'primaria') {
-                    num1 = Math.floor(Math.random() * 20) + 1;
-                    num2 = Math.floor(Math.random() * 20) + 1;
+                if (userGradeLevel <= 6) { // Primary school levels (Grades 1-6)
+                    // Numbers scale up with grade for more challenge
+                    const maxNum = 5 + userGradeLevel * 3; // e.g., Grade 1: max 8; Grade 6: max 23
+                    num1 = Math.floor(Math.random() * maxNum) + 1;
+                    num2 = Math.floor(Math.random() * maxNum) + 1;
                     op = Math.random() > 0.5 ? '+' : '-';
                     if (op === '-' && num1 < num2) [num1, num2] = [num2, num1]; // Ensure positive result for subtraction
                     answer = op === '+' ? num1 + num2 : num1 - num2;
-                } else { // secundaria (more complex)
+                } else { // Secondary school levels (Grades 7-12, or Years 1-6 Secondary)
                     const ops = ['+', '-', '*', '/'];
                     op = ops[Math.floor(Math.random() * ops.length)];
                     
@@ -1273,8 +1403,11 @@
                         num1 = num2 * (Math.floor(Math.random() * 15) + 1); 
                         answer = num1 / num2;
                     } else {
-                        num1 = Math.floor(Math.random() * 50) + 1; // Larger numbers for other operations
-                        num2 = Math.floor(Math.random() * 20) + 1;
+                        // Numbers scale up with secondary grade
+                        const maxNum = 50 + (userGradeLevel - 6) * 10; // e.g., Grade 7 (1st secondary): max 60; Grade 12 (6th secondary): max 110
+                        const maxNum2 = 20 + (userGradeLevel - 6) * 5; // second number also scales
+                        num1 = Math.floor(Math.random() * maxNum) + 1; 
+                        num2 = Math.floor(Math.random() * maxNum2) + 1;
                         if (op === '+') answer = num1 + num2;
                         if (op === '-') {
                             if (num1 < num2) [num1, num2] = [num2, num1]; // Ensure positive result
@@ -1323,7 +1456,7 @@
             
             // Define questions based on user education level
             const historyQuestions = {
-                primaria: {
+                primary: { // Grades 1-6
                     general: [
                         { question: "¿Quién fue el primer hombre en pisar la Luna?", answer: "Neil Armstrong", options: ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "Michael Collins"] },
                         { question: "¿Qué dinosaurio tenía un cuello muy largo?", answer: "Brachiosaurus", options: ["T-Rex", "Brachiosaurus", "Velociraptor", "Triceratops"] },
@@ -1339,7 +1472,7 @@
                         { question: "¿Qué día se celebra la Revolución de Mayo?", answer: "25 de mayo", options: ["9 de julio", "17 de agosto", "25 de mayo", "12 de octubre"] }
                     ]
                 },
-                secundaria: {
+                secondary: { // Grades 7-12 (Years 1-6 Secondary)
                     general: [
                         { question: "¿En qué año cayó el Muro de Berlín?", answer: "1989", options: ["1989", "1991", "1985", "1990"] },
                         { question: "¿Quién escribió 'Don Quijote de la Mancha'?", answer: "Miguel de Cervantes", options: ["Gabriel García Márquez", "Jorge Luis Borges", "Miguel de Cervantes", "Federico García Lorca"] },
@@ -1378,8 +1511,9 @@
             };
 
             const startGame = (category) => {
+                const educationKey = (userGradeLevel <= 6) ? 'primary' : 'secondary';
                 currentCategory = category;
-                currentQuestions = [...historyQuestions[userEducation][category]].sort(() => 0.5 - Math.random());
+                currentQuestions = [...historyQuestions[educationKey][category]].sort(() => 0.5 - Math.random());
                 currentQuestionIndex = 0;
                 score = 0;
                 displayQuestion();
@@ -1457,6 +1591,255 @@
             };
 
             showCategorySelection(); // Start by showing category selection
+        }
+
+        // --- Drawing Game (NEW) ---
+        function createDrawingGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Juego de Dibujo";
+
+            area.innerHTML = `
+                <p class="game-description">¡Dibuja lo que quieras! Elige un color, el grosor del pincel o una forma.</p>
+                <div class="drawing-controls">
+                    <label for="penColor">Color:</label>
+                    <input type="color" id="penColor" value="#4c1d95">
+                    <label for="lineWidth">Grosor:</label>
+                    <input type="range" id="lineWidth" min="1" max="15" value="5">
+                    <button id="modeFreehand" class="drawing-mode-button active">Pincel</button>
+                    <button id="modeLine" class="drawing-mode-button">Línea</button>
+                    <button id="modeRectangle" class="drawing-mode-button">Rectángulo</button>
+                    <button id="modeCircle" class="drawing-mode-button">Círculo</button>
+                    <button id="eraserBtn" class="primary-button">Goma</button>
+                    <button id="clearCanvasBtn" class="primary-button">Borrar Todo</button>
+                </div>
+                <canvas id="drawingCanvas" width="500" height="350"></canvas>
+                <div class="button-container">
+                    <button id="backToGameSelection" class="primary-button">Volver</button>
+                </div>
+            `;
+
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            const penColorInput = document.getElementById('penColor');
+            const lineWidthInput = document.getElementById('lineWidth');
+            const eraserBtn = document.getElementById('eraserBtn');
+            const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+            const backBtn = document.getElementById('backToGameSelection');
+
+            // Shape mode buttons
+            const modeFreehandBtn = document.getElementById('modeFreehand');
+            const modeLineBtn = document.getElementById('modeLine');
+            const modeRectangleBtn = document.getElementById('modeRectangle');
+            const modeCircleBtn = document.getElementById('modeCircle');
+
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            let currentColor = penColorInput.value;
+            let currentLineWidth = parseInt(lineWidthInput.value);
+            let drawingMode = 'freehand'; // 'freehand', 'line', 'rectangle', 'circle'
+            let startX = 0;
+            let startY = 0;
+            let snapshot = null; // To store canvas state for temporary shape drawing
+
+            // Function to resize canvas and redraw content (if needed, for responsiveness)
+            const resizeCanvas = () => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height); // Save current drawing
+
+                canvas.width = rect.width > 500 ? 500 : rect.width - 40; // Max 500px, responsive padding
+                canvas.height = canvas.width * (350 / 500); // Maintain aspect ratio from original 500x350
+                
+                // Restore previous drawing if it exists
+                if (imageData) {
+                    // Create a temporary canvas to draw the saved image data
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = imageData.width;
+                    tempCanvas.height = imageData.height;
+                    tempCtx.putImageData(imageData, 0, 0);
+                    
+                    // Draw the temporary canvas content onto the main canvas, scaled
+                    ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+                }
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = currentColor;
+                ctx.lineWidth = currentLineWidth;
+                ctx.globalCompositeOperation = 'source-over'; // Ensure drawing mode is normal
+            };
+
+            // Initial resize and event listeners for responsiveness
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Function to get mouse/touch coordinates relative to canvas
+            function getCoords(e) {
+                const rect = canvas.getBoundingClientRect();
+                if (e.touches && e.touches.length > 0) {
+                    return {
+                        x: e.touches[0].clientX - rect.left,
+                        y: e.touches[0].clientY - rect.top
+                    };
+                }
+                return {
+                    x: e.offsetX,
+                    y: e.offsetY
+                };
+            }
+
+            function drawFreehand(e) {
+                if (!isDrawing) return;
+                const { x, y } = getCoords(e);
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                [lastX, lastY] = [x, y];
+            }
+
+            function drawShape(e) {
+                if (!isDrawing) return;
+                const { x, y } = getCoords(e);
+                
+                // Restore the canvas to the state before the current shape drawing started
+                if (snapshot) {
+                    ctx.putImageData(snapshot, 0, 0);
+                } else {
+                    // If no snapshot, clear and get a fresh one (shouldn't happen often if flow is correct)
+                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                }
+
+                ctx.beginPath();
+                ctx.strokeStyle = currentColor; // Ensure current color is used for shape outline
+                ctx.lineWidth = currentLineWidth; // Ensure current line width is used for shape outline
+                ctx.globalCompositeOperation = 'source-over'; // Ensure normal drawing for shapes
+
+                if (drawingMode === 'line') {
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(x, y);
+                } else if (drawingMode === 'rectangle') {
+                    const width = x - startX;
+                    const height = y - startY;
+                    ctx.rect(startX, startY, width, height);
+                } else if (drawingMode === 'circle') {
+                    const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+                }
+                ctx.stroke();
+            }
+
+            function startDrawing(e) {
+                isDrawing = true;
+                const { x, y } = getCoords(e);
+                startX = x;
+                startY = y;
+                [lastX, lastY] = [x, y];
+                if (drawingMode !== 'freehand') {
+                    // Take a snapshot of the canvas before drawing the temporary shape
+                    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            function stopDrawing() {
+                isDrawing = false;
+                snapshot = null; // Clear snapshot after drawing is complete
+            }
+
+            // Event listeners for drawing
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) startDrawing(e); // Only left click
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                if (drawingMode === 'freehand') {
+                    drawFreehand(e);
+                } else {
+                    drawShape(e);
+                }
+            });
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Touch events for drawing (adapted for shapes)
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevent scrolling
+                startDrawing(e);
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault(); // Prevent scrolling
+                if (drawingMode === 'freehand') {
+                    drawFreehand(e);
+                } else {
+                    drawShape(e);
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', stopDrawing);
+
+
+            // Control handlers
+            penColorInput.addEventListener('change', (e) => {
+                currentColor = e.target.value;
+                ctx.strokeStyle = currentColor;
+                ctx.globalCompositeOperation = 'source-over'; // Reset to normal drawing
+                updateModeButtons(); // Ensure active mode stays visually correct
+            });
+
+            lineWidthInput.addEventListener('change', (e) => {
+                currentLineWidth = parseInt(e.target.value);
+                ctx.lineWidth = currentLineWidth;
+            });
+
+            eraserBtn.addEventListener('click', () => {
+                drawingMode = 'eraser';
+                ctx.strokeStyle = '#ffffff'; // Set color to canvas background for erasing
+                ctx.globalCompositeOperation = 'destination-out'; // Erase effect
+                ctx.lineWidth = currentLineWidth; // Use current line width for eraser
+                updateModeButtons(eraserBtn);
+            });
+
+            clearCanvasBtn.addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = penColorInput.value; // Reset to pen color
+                ctx.globalCompositeOperation = 'source-over'; // Reset to normal drawing
+                updateModeButtons(modeFreehandBtn); // Default back to freehand
+                drawingMode = 'freehand';
+            });
+
+            // Shape mode button handlers
+            const setDrawingMode = (mode, buttonElement) => {
+                drawingMode = mode;
+                ctx.strokeStyle = penColorInput.value; // Reset to pen color
+                ctx.globalCompositeOperation = 'source-over'; // Reset to normal drawing
+                ctx.lineWidth = currentLineWidth; // Reset line width
+                updateModeButtons(buttonElement);
+            };
+
+            modeFreehandBtn.addEventListener('click', () => setDrawingMode('freehand', modeFreehandBtn));
+            modeLineBtn.addEventListener('click', () => setDrawingMode('line', modeLineBtn));
+            modeRectangleBtn.addEventListener('click', () => setDrawingMode('rectangle', modeRectangleBtn));
+            modeCircleBtn.addEventListener('click', () => setDrawingMode('circle', modeCircleBtn));
+
+            // Function to update active button class
+            function updateModeButtons(activeButton = modeFreehandBtn) {
+                document.querySelectorAll('.drawing-mode-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                if (activeButton) {
+                    activeButton.classList.add('active');
+                }
+                // Handle eraser button separately as it's not a 'mode-button' but changes drawing behavior
+                if (drawingMode === 'eraser') {
+                    eraserBtn.classList.add('active');
+                } else {
+                    eraserBtn.classList.remove('active');
+                }
+            }
+            updateModeButtons(modeFreehandBtn); // Initialize active button
+
+            backBtn.onclick = showGamesSelection; // Back to game selection
         }
 
 
@@ -1636,10 +2019,10 @@
             enableGameControls();
         }
 
-        // --- Tic Tac Toe Game ---
+        // --- Tic Tac Toe Game (AI vs Player) ---
         function createTicTacToeGame() {
             const area = document.getElementById('gameContentArea');
-            document.getElementById('gameHeaderTitle').textContent = "Tres en Raya";
+            document.getElementById('gameHeaderTitle').textContent = "Tres en Raya (vs. AmigoBot)";
 
             let board = ['', '', '', '', '', '', '', '', ''];
             let currentPlayer = 'X'; // Human player
@@ -1673,14 +2056,29 @@
 
             const enableBoardClicks = () => {
                 document.querySelectorAll('.tic-tac-toe-cell').forEach(cell => {
-                    cell.style.pointerEvents = 'auto';
+                    // Only enable clicks for empty cells
+                    if (board[parseInt(cell.dataset.index)] === '') {
+                        cell.style.pointerEvents = 'auto';
+                    }
                 });
+            };
+
+            const highlightWinningCells = (player) => {
+                for (let i = 0; i < winConditions.length; i++) {
+                    const [a, b, c] = winConditions[i];
+                    if (board[a] === player && board[a] === board[b] && board[a] === board[c]) {
+                        document.getElementById('ticTacToeGrid').children[a].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[b].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[c].classList.add('winner');
+                        break;
+                    }
+                }
             };
 
             const handleCellClick = (index) => {
                 if (!gameActive || board[index] !== '') return;
 
-                // Human player move
+                // Human player (X) move
                 board[index] = currentPlayer;
                 document.getElementById('ticTacToeGrid').children[index].textContent = currentPlayer;
                 document.getElementById('ticTacToeGrid').children[index].classList.add(currentPlayer.toLowerCase());
@@ -1700,8 +2098,8 @@
                     return;
                 }
 
-                // Switch to AI player
-                currentPlayer = 'O'; // AI player
+                // Switch to AI player (O)
+                currentPlayer = 'O';
                 document.getElementById('ticTacToeStatus').textContent = `Turno de AmigoBot`;
                 disableBoardClicks(); // Disable clicks during AI turn
                 setTimeout(aiMove, 1000); // AI makes a move after a short delay
@@ -1709,26 +2107,36 @@
 
             const aiMove = () => {
                 let bestMove = -1;
+                const aiPlayer = 'O';
+                const humanPlayer = 'X';
 
-                // 1. Check if AI can win
+                // Prioritize moves:
+                // 1. Win
+                // 2. Block human win
+                // 3. Take center
+                // 4. Take opposite corner
+                // 5. Take empty corner
+                // 6. Take empty side
+
+                // Check for winning move for AI
                 for (let i = 0; i < board.length; i++) {
                     if (board[i] === '') {
                         let tempBoard = [...board];
-                        tempBoard[i] = 'O';
-                        if (checkWin(tempBoard, 'O')) {
+                        tempBoard[i] = aiPlayer;
+                        if (checkWin(tempBoard, aiPlayer)) {
                             bestMove = i;
                             break;
                         }
                     }
                 }
 
-                // 2. Block player's winning move
+                // Block human's winning move
                 if (bestMove === -1) {
                     for (let i = 0; i < board.length; i++) {
                         if (board[i] === '') {
                             let tempBoard = [...board];
-                            tempBoard[i] = 'X';
-                            if (checkWin(tempBoard, 'X')) {
+                            tempBoard[i] = humanPlayer;
+                            if (checkWin(tempBoard, humanPlayer)) {
                                 bestMove = i;
                                 break;
                             }
@@ -1736,12 +2144,20 @@
                     }
                 }
 
-                // 3. Take center
+                // Take center
                 if (bestMove === -1 && board[4] === '') {
                     bestMove = 4;
                 }
 
-                // 4. Take a corner
+                // Take opposite corner (if human is in opposite corner)
+                if (bestMove === -1) {
+                    if (board[0] === humanPlayer && board[8] === '') bestMove = 8;
+                    else if (board[2] === humanPlayer && board[6] === '') bestMove = 6;
+                    else if (board[6] === humanPlayer && board[2] === '') bestMove = 2;
+                    else if (board[8] === humanPlayer && board[0] === '') bestMove = 0;
+                }
+
+                // Take any empty corner
                 if (bestMove === -1) {
                     const corners = [0, 2, 6, 8];
                     for (let i = 0; i < corners.length; i++) {
@@ -1752,22 +2168,32 @@
                     }
                 }
 
-                // 5. Take any available spot
+                // Take any empty side
                 if (bestMove === -1) {
-                    const availableSpots = [];
-                    for (let i = 0; i < board.length; i++) {
-                        if (board[i] === '') {
-                            availableSpots.push(i);
+                    const sides = [1, 3, 5, 7];
+                    for (let i = 0; i < sides.length; i++) {
+                        if (board[sides[i]] === '') {
+                            bestMove = sides[i];
+                            break;
                         }
                     }
-                    bestMove = availableSpots[Math.floor(Math.random() * availableSpots.length)];
                 }
 
+                // Make the AI move if a valid one is found
                 if (bestMove !== -1) {
-                    board[bestMove] = 'O';
-                    document.getElementById('ticTacToeGrid').children[bestMove].textContent = 'O';
-                    document.getElementById('ticTacToeGrid').children[bestMove].classList.add('o');
+                    board[bestMove] = aiPlayer;
+                    document.getElementById('ticTacToeGrid').children[bestMove].textContent = aiPlayer;
+                    document.getElementById('ticTacToeGrid').children[bestMove].classList.add(aiPlayer.toLowerCase());
+                } else {
+                    // Fallback: If no strategic move, pick the first available empty spot
+                    const firstEmpty = board.findIndex(cell => cell === '');
+                    if (firstEmpty !== -1) {
+                        board[firstEmpty] = aiPlayer;
+                        document.getElementById('ticTacToeGrid').children[firstEmpty].textContent = aiPlayer;
+                        document.getElementById('ticTacToeGrid').children[firstEmpty].classList.add(aiPlayer.toLowerCase());
+                    }
                 }
+
 
                 if (checkWin(board, currentPlayer)) {
                     gameActive = false;
@@ -1784,21 +2210,9 @@
                     return;
                 }
 
-                currentPlayer = 'X'; // Switch back to human player
+                currentPlayer = humanPlayer; // Switch back to human player
                 document.getElementById('ticTacToeStatus').textContent = `Turno de ${userName}`;
-                enableBoardClicks(); // Enable clicks for human player
-            };
-
-            const highlightWinningCells = (player) => {
-                for (let i = 0; i < winConditions.length; i++) {
-                    const [a, b, c] = winConditions[i];
-                    if (board[a] === player && board[a] === board[b] && board[a] === board[c]) {
-                        document.getElementById('ticTacToeGrid').children[a].classList.add('winner');
-                        document.getElementById('ticTacToeGrid').children[b].classList.add('winner');
-                        document.getElementById('ticTacToeGrid').children[c].classList.add('winner');
-                        break;
-                    }
-                }
+                enableBoardClicks(); // Re-enable clicks for human player
             };
 
             const resetGame = () => {
@@ -1815,7 +2229,7 @@
             };
 
             area.innerHTML = `
-                <p class="game-description">Juega al clásico Tres en Raya contra AmigoBot.</p>
+                <p class="game-description">Juega al clásico Tres en Raya contra AmigoBot. ¡Intenta ganarle!</p>
                 <div id="ticTacToeStatus" class="text-xl font-semibold mb-4 text-primary-dark">Turno de ${userName}</div>
                 <div id="ticTacToeGrid">
                     ${Array(9).fill().map((_, i) => `<div class="tic-tac-toe-cell" data-index="${i}"></div>`).join('')}
@@ -1835,41 +2249,328 @@
         }
 
 
-        // Other Sections
+        // --- Theory Section ---
+
+        // Update the main theory area to show subject selection
         function showTheoryArea() {
-            const area = document.getElementById('theoryContentArea');
-            let content = '';
-             if (userEducation === 'primaria') {
+            const theoryHeaderTitle = document.getElementById('theoryHeaderTitle');
+            const theoryContentArea = document.getElementById('theoryContentArea');
+            const theorySectionHeader = document.getElementById('theorySectionHeader');
+            const backButton = theorySectionHeader.querySelector('.back-button');
+
+            theoryHeaderTitle.textContent = "Material Teórico";
+            // Make sure the back button goes to mainCardsView from the subject selection
+            backButton.dataset.target = 'mainCardsView';
+
+            theoryContentArea.innerHTML = `
+                <h3 class="game-title">Elige una Materia</h3>
+                <p class="game-description">Explora el conocimiento por diferentes asignaturas:</p>
+                <div class="button-container">
+                    <button id="mathTheoryButton" class="primary-button">Matemáticas</button>
+                    <button id="languageTheoryButton" class="primary-button">Lengua</button>
+                    <button id="historyTheoryButton" class="primary-button">Historia</button>
+                    <button id="geographyTheoryButton" class="primary-button">Geografía</button>
+                    <button id="scienceTheoryButton" class="primary-button">Ciencias</button>
+                </div>
+            `;
+
+            // Attach event listeners for subject buttons
+            document.getElementById('mathTheoryButton').onclick = showMathTheory;
+            document.getElementById('languageTheoryButton').onclick = showLanguageTheory;
+            document.getElementById('historyTheoryButton').onclick = showHistoryTheory;
+            document.getElementById('geographyTheoryButton').onclick = showGeographyTheory;
+            document.getElementById('scienceTheoryButton').onclick = showScienceTheory;
+        }
+
+        // Helper to display theory content for a subject
+        function displaySubjectTheory(title, description) {
+            const theoryHeaderTitle = document.getElementById('theoryHeaderTitle');
+            const theoryContentArea = document.getElementById('theoryContentArea');
+            const theorySectionHeader = document.getElementById('theorySectionHeader');
+            const backButton = theorySectionHeader.querySelector('.back-button');
+
+            theoryHeaderTitle.textContent = title;
+            // Make sure the back button goes back to mainTheoryView (subject selection)
+            backButton.dataset.target = 'mainTheoryView';
+
+            theoryContentArea.innerHTML = `
+                <h3 class="section-title">${title}</h3>
+                <p class="section-description">${description}</p>
+                <div class="button-container">
+                    <button class="primary-button" data-target="mainTheoryView">Volver a Materias</button>
+                </div>
+            `;
+            // Ensure the back button event listener is correctly re-applied for navigation
+            backButton.onclick = () => navigateTo('mainTheoryView');
+            document.querySelector('#theoryContentArea .primary-button').onclick = () => navigateTo('mainTheoryView');
+        }
+
+        function showMathTheory() {
+            let content;
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary school levels (Grades 1-6)
+                // Adjusting exercise difficulty based on grade level
+                const baseNum1 = 5;
+                const baseNum2 = 3;
+                const seqStart = 10;
+                const subNum1 = 12;
+                const subNum2 = 4;
+
+                const factor = userGradeLevel; // Numbers will grow linearly with grade
+
                 content = `
-                    <h3 class="section-title">Descubre el Cuerpo Humano</h3>
-                    <p class="section-description">¡Hola! Tu cuerpo es como una máquina increíble. Tienes un corazón que late sin parar para llevar energía a todas partes, y pulmones que toman aire para que puedas correr y jugar. ¡Tus huesos son el soporte y tus músculos te dan la fuerza para moverte!</p>
-                    <img src="https://placehold.co/300x200/c7d2fe/4c1d95?text=Cuerpo+Humano" alt="Ilustración del cuerpo humano" class="rounded-lg my-4 shadow-md">
+                    <p>¡Hola! Las matemáticas nos ayudan a contar y resolver problemas. La suma es juntar cosas, y la resta es quitar.</p>
+                    <p class="font-bold mt-4">Ejercicios para el Grado ${userGradeLevel}:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿Cuánto es ${baseNum1 * factor} + ${baseNum2 * factor}?</li>
+                        <li>2. Si tienes ${baseNum1 * factor + 2} caramelos y te comes ${baseNum2 + (userGradeLevel > 1 ? 1 : 0)}, ¿cuántos te quedan?</li>
+                        <li>3. Completa la secuencia: ${seqStart * factor}, ${seqStart * factor + 10 * factor}, ___, ${seqStart * factor + 30 * factor}, ${seqStart * factor + 40 * factor}.</li>
+                        <li>4. ¿Cuánto es ${subNum1 * factor} - ${subNum2 * (userGradeLevel > 1 ? 1 : 0) + (userGradeLevel > 1 ? userGradeLevel -1 : 0)}?</li>
+                    </ul>
+                    <p class="mt-4">¡Intenta resolverlos en tu cuaderno!</p>
                 `;
-            } else { 
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary school levels (Grades 7-12)
+                // Adjusting exercise difficulty based on secondary year (userGradeLevel - 6)
+                const secondaryYear = userGradeLevel - 6;
+
                 content = `
-                    <h3 class="section-title">Explorando la Célula</h3>
-                    <p class="section-description">La célula es la unidad de vida más pequeña. Las células eucariotas, como las nuestras, tienen un núcleo que protege el ADN y orgánulos como las mitocondrias, que son las centrales energéticas de la célula, ¡convirtiendo el alimento en energía que podemos usar!</p>
-                     <img src="https://placehold.co/300x200/c7d2fe/4c1d95?text=Célula+Eucariota" alt="Ilustración de una célula" class="rounded-lg my-4 shadow-md">
+                    <p>El álgebra es una herramienta poderosa en matemáticas donde usamos letras (variables) para representar números desconocidos. Nos ayuda a resolver ecuaciones y entender patrones.</p>
+                    <p class="font-bold mt-4">Ejercicios para el ${secondaryYear}° año de secundaria (Grado ${userGradeLevel}):</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Resuelve para $x$: $x + ${5 + secondaryYear} = ${12 + secondaryYear}$</li>
+                        <li>2. Si $${3 + secondaryYear}y - ${7 + secondaryYear} = ${8 + secondaryYear}$, ¿cuál es el valor de $y$?</li>
+                        <li>3. Calcula el valor de $a$ si $${2 + secondaryYear}a + ${4 + secondaryYear} = ${10 + secondaryYear}$.</li>
+                        <li>4. Si $z / ${2 + secondaryYear} = ${9 + secondaryYear}$, ¿cuál es el valor de $z$?</li>
+                    </ul>
+                    <p class="mt-4">¡A practicar con estas ecuaciones!</p>
+                `;
+            } else { // Fallback for unexpected grade levels
+                content = `
+                    <p>¡Hola! Las matemáticas nos ayudan a contar y resolver problemas. La suma es juntar cosas, y la resta es quitar.</p>
+                    <p class="font-bold mt-4">Ejercicios:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿Cuánto es 5 + 3?</li>
+                        <li>2. Si tienes 7 caramelos y te comes 2, ¿cuántos te quedan?</li>
+                        <li>3. Completa la secuencia: 10, 20, ___, 40, 50.</li>
+                        <li>4. ¿Cuánto es 12 - 4?</li>
+                    </ul>
+                    <p class="mt-4">¡Intenta resolverlos en tu cuaderno!</p>
                 `;
             }
-            area.innerHTML = content;
+            displaySubjectTheory("Matemáticas", content);
+        }
+
+        function showLanguageTheory() {
+            let content;
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary school levels
+                content = `
+                    <p>¡Las vocales son muy importantes en la lengua! Son 5 letras: A, E, I, O, U. Con ellas podemos formar muchas palabras.</p>
+                    <p class="font-bold mt-4">Ejercicios para el Grado ${userGradeLevel}:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Escribe 3 palabras que empiecen con 'A'.</li>
+                        <li>2. Subraya las vocales en la palabra "elefante".</li>
+                        <li>3. ¿Cuántas vocales tiene la palabra "computadora"?</li>
+                        <li>4. Nombra una palabra que empiece con 'O'.</li>
+                    </ul>
+                    <p class="mt-4">¡A jugar con las palabras!</p>
+                `;
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary school levels
+                const secondaryYear = userGradeLevel - 6;
+                content = `
+                    <p>Las oraciones son grupos de palabras que expresan una idea completa. Existen diferentes tipos: declarativas (afirman algo), interrogativas (preguntan), exclamativas (expresan emoción) e imperativas (dan órdenes).</p>
+                    <p class="font-bold mt-4">Ejercicios para el ${secondaryYear}° año de secundaria (Grado ${userGradeLevel}):</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Clasifica la siguiente oración: "¿Qué hora es?"</li>
+                        <li>2. Escribe un ejemplo de oración imperativa.</li>
+                        <li>3. ¿Qué tipo de oración es: "¡Qué día tan bonito!"?</li>
+                        <li>4. Transforma "Ellos estudian mucho" en una oración interrogativa.</li>
+                    </ul>
+                    <p class="mt-4">¡Analiza cada oración con atención!</p>
+                `;
+            } else { // Fallback
+                content = `
+                    <p>¡Las vocales son muy importantes en la lengua! Son 5 letras: A, E, I, O, U. Con ellas podemos formar muchas palabras.</p>
+                    <p class="font-bold mt-4">Ejercicios:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Escribe 3 palabras que empiecen con 'A'.</li>
+                        <li>2. Subraya las vocales en la palabra "elefante".</li>
+                        <li>3. ¿Cuántas vocales tiene la palabra "computadora"?</li>
+                        <li>4. Nombra una palabra que empiece con 'O'.</li>
+                    </ul>
+                    <p class="mt-4">¡A jugar con las palabras!</p>
+                `;
+            }
+            displaySubjectTheory("Lengua", content);
+        }
+
+        function showHistoryTheory() {
+            let content;
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary school levels
+                content = `
+                    <p>Hace muchísimos años, antes de que existieran los humanos, la Tierra estaba llena de dinosaurios. Eran animales gigantes, algunos comían plantas y otros comían carne. ¡Eran fascinantes!</p>
+                    <p class="font-bold mt-4">Ejercicios para el Grado ${userGradeLevel}:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Nombra un dinosaurio que comía plantas.</li>
+                        <li>2. ¿Qué comía un T-Rex?</li>
+                        <li>3. ¿Vivieron los humanos al mismo tiempo que los dinosaurios? (Sí/No)</li>
+                        <li>4. Dibuja tu dinosaurio favorito.</li>
+                    </ul>
+                    <p class="mt-4">¡Sigue explorando el pasado!</p>
+                `;
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary school levels
+                const secondaryYear = userGradeLevel - 6;
+                content = `
+                    <p>La Revolución Industrial fue un gran cambio en la forma en que las cosas se fabricaban y en cómo vivía la gente, comenzando en el siglo XVIII. Se inventaron máquinas nuevas, las fábricas crecieron y la vida en las ciudades cambió por completo.</p>
+                    <p class="font-bold mt-4">Ejercicios para el ${secondaryYear}° año de secundaria (Grado ${userGradeLevel}):</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿En qué siglo comenzó la Revolución Industrial?</li>
+                        <li>2. Nombra dos inventos importantes de esta época.</li>
+                        <li>3. ¿Cómo cambió la vida en las ciudades durante la Revolución Industrial?</li>
+                        <li>4. Investiga sobre la máquina de vapor y resume su importancia.</li>
+                    </ul>
+                    <p class="mt-4">¡El pasado tiene mucho que enseñarnos!</p>
+                `;
+            } else { // Fallback
+                 content = `
+                    <p>Hace muchísimos años, antes de que existieran los humanos, la Tierra estaba llena de dinosaurios. Eran animales gigantes, algunos comían plantas y otros comían carne. ¡Eran fascinantes!</p>
+                    <p class="font-bold mt-4">Ejercicios:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Nombra un dinosaurio que comía plantas.</li>
+                        <li>2. ¿Qué comía un T-Rex?</li>
+                        <li>3. ¿Vivieron los humanos al mismo tiempo que los dinosaurios? (Sí/No)</li>
+                        <li>4. Dibuja tu dinosaurio favorito.</li>
+                    </ul>
+                    <p class="mt-4">¡Sigue explorando el pasado!</p>
+                `;
+            }
+            displaySubjectTheory("Historia", content);
+        }
+
+        function showGeographyTheory() {
+            let content;
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary school levels
+                content = `
+                    <p>La geografía nos ayuda a entender dónde vivimos. En tu ciudad hay casas, parques, escuelas y calles. ¿Qué lugares te gustan más de tu ciudad?</p>
+                    <p class="font-bold mt-4">Ejercicios para el Grado ${userGradeLevel}:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Nombra 3 lugares importantes de tu ciudad.</li>
+                        <li>2. ¿Cómo se llama la calle principal de tu barrio?</li>
+                        <li>3. Dibuja un mapa simple de tu casa y la escuela.</li>
+                        <li>4. ¿Qué es un parque? ¿Hay uno cerca de tu casa?</li>
+                    </ul>
+                    <p class="mt-4">¡Mira a tu alrededor y descubre tu mundo!</p>
+                `;
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary school levels
+                const secondaryYear = userGradeLevel - 6;
+                content = `
+                    <p>La Tierra tiene muchos climas diferentes, como el polar frío, el tropical cálido y húmedo, o el desértico seco. Cada clima afecta a la vida de las plantas, animales y personas en esas regiones.</p>
+                    <p class="font-bold mt-4">Ejercicios para el ${secondaryYear}° año de secundaria (Grado ${userGradeLevel}):</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Describe las características de un clima desértico.</li>
+                        <li>2. ¿En qué tipo de clima se encuentran las selvas tropicales?</li>
+                        <li>3. Nombra un país con clima polar.</li>
+                        <li>4. Explica cómo el clima influye en la vestimenta de las personas.</li>
+                    </ul>
+                    <p class="mt-4">¡El planeta es un lugar asombroso!</p>
+                `;
+            } else { // Fallback
+                content = `
+                    <p>La geografía nos ayuda a entender dónde vivimos. En tu ciudad hay casas, parques, escuelas y calles. ¿Qué lugares te gustan más de tu ciudad?</p>
+                    <p class="font-bold mt-4">Ejercicios:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. Nombra 3 lugares importantes de tu ciudad.</li>
+                        <li>2. ¿Cómo se llama la calle principal de tu barrio?</li>
+                        <li>3. Dibuja un mapa simple de tu casa y la escuela.</li>
+                        <li>4. ¿Qué es un parque? ¿Hay uno cerca de tu casa?</li>
+                    </ul>
+                    <p class="mt-4">¡Mira a tu alrededor y descubre tu mundo!</p>
+                `;
+            }
+            displaySubjectTheory("Geografía", content);
+        }
+
+        function showScienceTheory() {
+            let content;
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary school levels
+                content = `
+                    <p>¡Hola! Tu cuerpo es como una máquina increíble. Tienes un corazón que late sin parar para llevar energía a todas partes, y pulmones que toman aire para que puedas correr y jugar. ¡Tus huesos son el soporte y tus músculos te dan la fuerza para moverte!</p>
+                    <p class="font-bold mt-4">Ejercicios para el Grado ${userGradeLevel}:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿Qué órgano de tu cuerpo bombea la sangre?</li>
+                        <li>2. ¿Para qué sirven tus pulmones?</li>
+                        <li>3. Nombra tres partes de tu cuerpo que te ayuden a moverte.</li>
+                        <li>4. ¿Qué debes comer para que tus huesos estén fuertes?</li>
+                    </ul>
+                    <p class="mt-4">¡Conoce más sobre tu cuerpo y cuídalo mucho!</p>
+                `;
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary school levels
+                const secondaryYear = userGradeLevel - 6;
+                content = `
+                    <p>La célula es la unidad de vida más pequeña. Las células eucariotas, como las nuestras, tienen un núcleo que protege el ADN y orgánulos como las mitocondrias, que son las centrales energéticas de la célula, ¡convirtiendo el alimento en energía que podemos usar!</p>
+                    <p class="font-bold mt-4">Ejercicios para el ${secondaryYear}° año de secundaria (Grado ${userGradeLevel}):</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿Cuál es la función principal del núcleo en una célula eucariota?</li>
+                        <li>2. ¿Qué orgánulo es responsable de producir energía en la célula?</li>
+                        <li>3. Diferencia entre una célula procariota y eucariota (menciona al menos una diferencia clave).</li>
+                        <li>4. ¿Por qué se dice que la célula es la unidad básica de la vida?</li>
+                    </ul>
+                    <p class="mt-4">¡El mundo microscópico es fascinante!</p>
+                `;
+            } else { // Fallback
+                content = `
+                    <p>¡Hola! Tu cuerpo es como una máquina increíble. Tienes un corazón que late sin parar para llevar energía a todas partes, y pulmones que toman aire para que puedas correr y jugar. ¡Tus huesos son el soporte y tus músculos te dan la fuerza para moverte!</p>
+                    <p class="font-bold mt-4">Ejercicios:</p>
+                    <ul class="list-disc list-inside text-left mx-auto max-w-sm">
+                        <li>1. ¿Qué órgano de tu cuerpo bombea la sangre?</li>
+                        <li>2. ¿Para qué sirven tus pulmones?</li>
+                        <li>3. Nombra tres partes de tu cuerpo que te ayuden a moverte.</li>
+                        <li>4. ¿Qué debes comer para que tus huesos estén fuertes?</li>
+                    </ul>
+                    <p class="mt-4">¡Conoce más sobre tu cuerpo y cuídalo mucho!</p>
+                `;
+            }
+            displaySubjectTheory("Ciencias", content);
         }
 
         function showStoriesArea() {
             const area = document.getElementById('storyContentArea');
-             let content = '';
-             if (userEducation === 'primaria') {
-                content = `
-                    <h3 class="section-title">El Elefante Que Quería Volar</h3>
-                    <p class="section-description">Había una vez un elefantito que soñaba con volar. Aunque todos le decían que era imposible, él agitaba sus grandes orejas cada día, esperando elevarse. Un día, con un gran salto y mucha fé, logró planear por el aire, demostrando que creer en ti mismo es el primer paso para lograr lo increíble.</p>
+            let storyTitle = '';
+            let storyContent = '';
+            if (userGradeLevel >= 1 && userGradeLevel <= 6) { // Primary stories
+                storyTitle = "El Elefante Que Quería Volar";
+                storyContent = `
+                    <p class="section-description">Había una vez, en una sabana muy grande y soleada, un elefantito curioso llamado Dumbo. No era un elefante cualquiera; Dumbo tenía un sueño que a todos les parecía muy extraño: ¡quería volar! Los demás elefantes, con sus patas fuertes y cuerpos pesados, solo sabían caminar y chapotear en el agua. Cuando Dumbo les contaba su sueño, ellos se reían con sus grandes trompas y le decían: "¡Pero Dumbo, los elefantes no vuelan! ¡Es imposible!"</p>
+                    <p class="section-description">Pero Dumbo no se rendía. Cada mañana, antes de que el sol calentara la sabana, se iba a un lugar secreto en lo alto de una pequeña colina. Allí, practicaba con sus orejas, que eran bastante grandes y le servían para darse aire cuando hacía calor. Con toda su fuerza, agitaba sus orejas hacia arriba y hacia abajo, imaginando que estaba planeando como los pájaros que veía en el cielo. Al principio, solo conseguía dar pequeños saltitos. Se caía, se revolcaba un poco en el polvo, pero siempre se levantaba con una sonrisa y una nueva idea.</p>
+                    <p class="section-description">Un día, mientras intentaba un salto más alto de lo normal, cerró los ojos con mucha fuerza y sintió una ráfaga de viento bajo sus orejas. ¡Estaban moviéndose más rápido que nunca! De repente, sus patas ya no tocaron el suelo. ¡Dumbo estaba flotando! Abrió los ojos con asombro y vio el mundo desde arriba. Los árboles parecían pequeños arbustos, y el río era una cinta plateada. Voló por todo el bosque, sintiendo el aire fresco en su cara y viendo el mundo desde arriba. Demostró a todos que, aunque algo parezca imposible, creer en ti mismo y nunca rendirse es el primer paso para lograr lo más increíble. Desde ese día, Dumbo voló feliz por el cielo, llevando alegría y asombro a todos los que lo veían. Y cada vez que alguien decía "Es imposible", él solo sonreía y recordaba su propio vuelo, sabiendo que los sueños, por grandes que sean, ¡pueden hacerse realidad con valentía y confianza!</p>
                 `;
-            } else {
-                content = `
-                    <h3 class="section-title">El Enigma del Bosque Susurrante</h3>
-                    <p class="section-description">Una joven erudita, Elara, se adentró en un bosque del que se decía guardaba un antiguo enigma. Siguiendo un mapa, encontró una gruta con una esfera de cristal. Al tocarla, no encontró un monstruo, sino visiones de conocimiento antiguo. Aprendió que la verdadera sabiduría es el mayor de los tesoros.</p>
+            } else if (userGradeLevel >= 7 && userGradeLevel <= 12) { // Secondary stories
+                storyTitle = "El Enigma del Bosque Susurrante";
+                storyContent = `
+                    <p class="section-description">En los confines de un reino antaño glorioso, se extendía un territorio enigmático conocido como el Bosque Susurrante. La leyenda afirmaba que en sus profundidades se ocultaba una sabiduría ancestral, celosamente custodiada por un enigma que solo los más puros de corazón y mente podían desentrañar. Motivada por una insaciable sed de conocimiento, Elara, una joven erudita cuya inteligencia rivalizaba con su curiosidad, se propuso descubrir la verdad de estos murmullos.</p>
+                    <p class="section-description">Elara se equipó con lo indispensable: un mapa desgastado por el tiempo, heredado de una bisabuela aventurera, una brújula de bronce que vibraba en presencia de la magia y un diario en blanco para registrar sus hallazgos. Al adentrarse en la arboleda, los árboles, imponentes y antiguos, parecían trenzar sus ramas en un abrazo protector, sus hojas susurrando secretos indescifrables con cada brisa. Días y noches se sucedieron mientras Elara navegaba por el laberinto natural, descifrando intrincados símbolos tallados en rocas cubiertas de musgo y resolviendo acertijos que la llevaban de un arroyo centelleante a una cueva oculta por una densa neblina.</p>
+                    <p class="section-description">Finalmente, llegó a una gruta velada por una majestuosa cascada, cuyas aguas caían como un velo de cristal. Dentro, la penumbra apenas era disipada por una tenue luz que emanaba de una esfera de cristal pulsante, suspendida en el centro de la cueva. Con cautela, Elara extendió la mano y la tocó. No hubo rugidos de bestias míticas ni trampas que la inmovilizaran; en su lugar, una avalancha de visiones y conocimientos ancestrales se vertió en su mente. Comprendió las leyes fundamentales del universo, la intrincada armonía de la naturaleza, el ciclo eterno de la vida y la interconexión ineludible de todas las cosas. No era un conocimiento que pudiera leer en un libro, sino una profunda comprensión que resonaba en su alma.</p>
+                    <p class="section-description">Elara salió del Bosque Susurrante transformada. Su partida no fue con arcas repletas de oro o gemas, sino con una riqueza mucho más valiosa: la certeza de que la verdadera opulencia reside en la expansión de la conciencia y el entendimiento. Comprendió que el mayor enigma no era el del bosque, sino la capacidad ilimitada de la mente humana para aprender, crecer y trascender sus propias limitaciones. Desde aquel día, Elara dedicó su vida a compartir esta sabiduría, inspirando a otros a buscar no solo respuestas, sino a formular las preguntas correctas para desvelar los infinitos misterios que aguardan en cada rincón del mundo.</p>
+                `;
+            } else { // Fallback story if userGradeLevel is outside expected range
+                storyTitle = "El Pequeño Dragón Valiente";
+                storyContent = `
+                    <p class="section-description">En un valle escondido entre montañas, vivía un pequeño dragón llamado Chispa. A diferencia de los otros dragones, Chispa no lanzaba fuego, sino pequeñas chispitas de colores. Los dragones grandes se reían de él. Un día, una gran tormenta amenazó el valle. Los dragones mayores intentaron alejarla con su fuego, pero no funcionó. Fue Chispa quien, con sus chispitas de colores, creó un arcoíris brillante que calmó la tormenta y trajo la paz. Todos aprendieron que la valentía viene en muchas formas, y a veces, lo más pequeño es lo más poderoso.</p>
                 `;
             }
-            area.innerHTML = content;
+
+            area.innerHTML = `
+                <h3 class="section-title">${storyTitle}</h3>
+                ${storyContent}
+                <div class="button-container">
+                    <button id="listenStoryButton" class="primary-button">Escuchar Cuento</button>
+                    <button class="primary-button" data-target="mainCardsView">Volver al Inicio</button>
+                </div>
+            `;
+
+            document.getElementById('listenStoryButton').onclick = () => {
+                // Get only the text content for speaking
+                const storyText = area.querySelector('.section-description').textContent;
+                speak(storyText, true); // Pass true to use story-specific voice settings
+            };
         }
 
         function showAchievementsArea() {
@@ -1888,6 +2589,20 @@
             `;
         }
 
+        // --- Relaxation Options (Updated with Affirmations) ---
+        const affirmations = [
+            "Soy fuerte y valiente, puedo con cualquier desafío.",
+            "Cada día aprendo algo nuevo y crezco un poco más.",
+            "Mi sonrisa ilumina el mundo, soy importante.",
+            "Respiro hondo, siento la calma y la paz en mí.",
+            "Soy amado/a y cuidado/a, y eso me hace feliz.",
+            "Tengo muchas ideas brillantes y soy muy creativo/a.",
+            "Me perdono y me acepto tal como soy, ¡soy genial!",
+            "La alegría me acompaña y disfruto cada momento.",
+            "Confío en mi capacidad para superar cualquier obstáculo.",
+            "Soy una persona maravillosa, por dentro y por fuera."
+        ];
+
         function showRelaxationOptions() {
             const area = document.getElementById('relaxationContentArea');
             area.innerHTML = `
@@ -1895,9 +2610,17 @@
                 <p class="section-description">Sigue el círculo para hacer un ejercicio de respiración. Te ayudará a sentirte más tranquilo y calmado.</p>
                 <div id="breathingCircle" class="breathing-circle">Respira</div>
                 <p id="breathingInstructions" class="breathing-instructions"></p>
+                <div class="button-container mb-8">
+                    <button id="startBreathing" class="primary-button">Comenzar Respiración</button>
+                    <button id="stopBreathing" class="primary-button hidden">Detener Respiración</button>
+                </div>
+
+                <h3 class="section-title">Mensajes de Ánimo</h3>
+                <p class="section-description">Lee una afirmación positiva para inspirarte.</p>
+                <p id="affirmationDisplay" class="text-xl font-semibold text-primary-dark my-4 p-4 rounded-lg bg-purple-100 italic"></p>
                 <div class="button-container">
-                    <button id="startBreathing" class="primary-button">Comenzar</button>
-                    <button id="stopBreathing" class="primary-button hidden">Detener</button>
+                    <button id="newAffirmationButton" class="primary-button">Nueva Afirmación</button>
+                    <button class="primary-button" data-target="mainCardsView">Volver al Inicio</button>
                 </div>
             `;
             
@@ -1938,8 +2661,147 @@
                 playPhase();
             };
             stopBtn.onclick = stopCycle;
+
+            // Affirmations Logic
+            const affirmationDisplay = document.getElementById('affirmationDisplay');
+            const newAffirmationButton = document.getElementById('newAffirmationButton');
+
+            function displayRandomAffirmation() {
+                const randomIndex = Math.floor(Math.random() * affirmations.length);
+                affirmationDisplay.textContent = affirmations[randomIndex];
+            }
+
+            newAffirmationButton.onclick = displayRandomAffirmation;
+            displayRandomAffirmation(); // Display an affirmation when the section loads
         }
+
+        // --- Daily Activity Suggestion (NEW) ---
+        function showDailyActivityView() {
+            const area = document.getElementById('dailyActivityContentArea');
+            const suggestions = {
+                1: [ // Grade 1
+                    { text: "¡Vamos a jugar al Juego de Memoria para entrenar tu cerebro!", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Explora la sección de Cuentos Mágicos. ¡Hay una historia increíble esperando!", target: "mainStoriesView" },
+                    { text: "Intenta el Juego de Matemáticas con sumas y restas sencillas. ¡Verás qué divertido!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Dibuja tu animal favorito en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                2: [ // Grade 2
+                    { text: "Encuentra todos los pares en el Juego de Memoria. ¡Puedes hacerlo!", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Lee un cuento mágico que te transporte a otro mundo.", target: "mainStoriesView" },
+                    { text: "Desafía tus habilidades en el Juego de Matemáticas. ¡Eres genial!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Crea una obra de arte en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                3: [ // Grade 3
+                    { text: "¡Demuestra tu agilidad mental en el Juego de Memoria!", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Sumérgete en un cuento lleno de aventuras.", target: "mainStoriesView" },
+                    { text: "Resuelve los problemas del Juego de Matemáticas. ¡Concéntrate!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Inventa un dibujo nuevo cada día en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                4: [ // Grade 4
+                    { text: "Juega una partida de Juego de Memoria y bate tu propio récord.", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Disfruta de un cuento largo que te haga soñar.", target: "mainStoriesView" },
+                    { text: "Practica tus operaciones en el Juego de Matemáticas. ¡Cada vez serás más rápido!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Explora tu creatividad con el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                5: [ // Grade 5
+                    { text: "Pon a prueba tu memoria con un nuevo desafío en el Juego de Memoria.", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Déjate llevar por la magia de un nuevo cuento.", target: "mainStoriesView" },
+                    { text: "Fortalece tus conocimientos con el Juego de Matemáticas.", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Crea tu propio personaje en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                6: [ // Grade 6
+                    { text: "¡Conviértete en un experto del Juego de Memoria!", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Busca un cuento con un mensaje inspirador en Cuentos Mágicos.", target: "mainStoriesView" },
+                    { text: "Desafíate con las preguntas del Juego de Matemáticas.", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Dibuja un paisaje de fantasía en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                7: [ // Grade 7 (1st Secondary)
+                    { text: "¡Desafía tu mente con el Juego de Memoria en su dificultad más alta!", target: "mainGameView", game: "memoryGameButton" },
+                    { text: "Lee el enigma del Bosque Susurrante en Cuentos Mágicos. ¡Te encantará!", target: "mainStoriesView" },
+                    { text: "Pon a prueba tus habilidades con el Juego de Matemáticas. ¡Eres capaz de resolverlo!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Crea un diseño abstracto en el Juego de Dibujo.", target: "mainGameView", game: "drawingGameButton" }
+                ],
+                8: [ // Grade 8
+                    { text: "¡A jugar al Tres en Raya contra AmigoBot! ¿Podrás ganarme?", target: "mainGameView", game: "ticTacToeGameButton" },
+                    { text: "Descubre un nuevo tema en Material Teórico. ¡Aprender es divertido!", target: "mainTheoryView" },
+                    { text: "Entrena tu agilidad mental con el Juego del Ahorcado.", target: "mainGameView", game: "hangmanGameButton" },
+                    { text: "Escribe en tu Cuaderno Virtual sobre tus sueños.", target: "mainNotebookView" }
+                ],
+                9: [ // Grade 9
+                    { text: "¡Demuestra tu dominio en el Juego del Ahorcado!", target: "mainGameView", game: "hangmanGameButton" },
+                    { text: "Explora la historia de Argentina en el Juego de Historia. ¡Aprende algo nuevo!", target: "mainGameView", game: "historyGameButton" },
+                    { text: "Pasa un rato tranquilo con los ejercicios de respiración en Relajación y Ánimo.", target: "mainRelaxationView" },
+                    { text: "Descubre una nueva afirmación positiva para tu día.", target: "mainRelaxationView" }
+                ],
+                10: [ // Grade 10
+                    { text: "Desarrolla tu lógica con una partida de Tres en Raya contra AmigoBot.", target: "mainGameView", game: "ticTacToeGameButton" },
+                    { text: "Sumérgete en un tema de Ciencias en Material Teórico. ¡El conocimiento te espera!", target: "mainTheoryView" },
+                    { text: "Escribe un recordatorio de algo importante en Recordatorios de Salud.", target: "mainRemindersView" },
+                    { text: "Revisa tus logros en la sección de Mis Logros. ¡Mira cuánto has avanzado!", target: "mainAchievementsView" }
+                ],
+                11: [ // Grade 11
+                    { text: "¡Acepta el desafío del Juego de Matemáticas con operaciones complejas!", target: "mainGameView", game: "mathGameButton" },
+                    { text: "Lee un cuento que te haga reflexionar en Cuentos Mágicos.", target: "mainStoriesView" },
+                    { text: "Investiga sobre un período histórico en Material Teórico.", target: "mainTheoryView" },
+                    { text: "Utiliza el Cuaderno Virtual para organizar tus ideas o planear tu día.", target: "mainNotebookView" }
+                ],
+                12: [ // Grade 12
+                    { text: "¡Ponte a prueba con todos los juegos! ¿Cuál es tu favorito hoy?", target: "mainGameView" },
+                    { text: "Explora cualquier materia en Material Teórico. ¡El conocimiento es poder!", target: "mainTheoryView" },
+                    { text: "Escribe sobre tus sentimientos en el Cuaderno Virtual. ¡Es un buen espacio para ti!", target: "mainNotebookView" },
+                    { text: "Relájate con una afirmación positiva y un ejercicio de respiración.", target: "mainRelaxationView" }
+                ]
+            };
+
+            const suggestedActivities = suggestions[userGradeLevel] || suggestions[1]; // Fallback to Grade 1 if level not found
+
+            const getRandomSuggestion = () => {
+                const randomIndex = Math.floor(Math.random() * suggestedActivities.length);
+                return suggestedActivities[randomIndex];
+            };
+
+            const displaySuggestion = () => {
+                const suggestion = getRandomSuggestion();
+                let suggestionText = `<p class="game-description text-xl text-primary-dark">${suggestion.text}</p>`;
+                
+                let actionButtonHtml = `<button class="primary-button" data-target="${suggestion.target}">Ir a la actividad</button>`;
+                // If there's a specific game button ID, generate a button that calls that game function
+                if (suggestion.game) {
+                    actionButtonHtml = `<button class="primary-button" id="goToSuggestedActivity">Ir a la actividad</button>`;
+                }
+
+                area.innerHTML = `
+                    <h3 class="section-title">¡Aquí tienes una idea!</h3>
+                    ${suggestionText}
+                    <div class="button-container">
+                        ${actionButtonHtml}
+                        <button id="anotherSuggestionButton" class="primary-button">Otra sugerencia</button>
+                        <button class="primary-button" data-target="mainCardsView">Volver al Inicio</button>
+                    </div>
+                `;
+
+                // Attach event listener for the action button if it's a specific game
+                if (suggestion.game) {
+                    const goToButton = document.getElementById('goToSuggestedActivity');
+                    if (goToButton) {
+                        goToButton.onclick = () => {
+                            navigateTo(suggestion.target); // First navigate to game view
+                            // Then manually call the game creation function
+                            if (suggestion.game === "memoryGameButton") createMemoryGame();
+                            else if (suggestion.game === "mathGameButton") createMathGame();
+                            else if (suggestion.game === "historyGameButton") createHistoryGame();
+                            else if (suggestion.game === "hangmanGameButton") createHangmanGame();
+                            else if (suggestion.game === "ticTacToeGameButton") createTicTacToeGame();
+                            else if (suggestion.game === "drawingGameButton") createDrawingGame();
+                        };
+                    }
+                }
+                document.getElementById('anotherSuggestionButton').onclick = displaySuggestion;
+            };
+
+            displaySuggestion();
+        }
+
     </script>
 </body>
 </html>
-
