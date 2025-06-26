@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AmigoBot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-light: #d8b4fe; /* Morado 300 */
+            --primary-main: #a78bfa; /* Violeta 400 */
+            --primary-dark: #4c1d95; /* Morado Oscuro */
+            --secondary-main: #818cf8; /* Índigo 400 */
+            --secondary-dark: #6366f1; /* Índigo 500 */
+            --accent-pink: #f472b6; /* Rosa 400 */
+            --accent-pink-dark: #ec4899; /* Rosa 500 */
+            --background-light: #f8fafc; /* Azul Gris 50 */
+            --text-dark: #374151; /* Gris 700 */
+            --text-light: #6b7280; /* Gris 500 */
+            --border-color: #e2e8f0; /* Gris 200 */
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--primary-main), var(--secondary-main), var(--primary-light));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 800px;
+            height: 90vh;
+            max-height: 900px;
+        }
+        .header {
+            color: var(--primary-dark);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+        }
+        .header p {
+            font-size: 1rem;
+            color: var(--secondary-dark);
+            max-width: 90%;
+        }
+        .content-display-area {
+            flex-grow: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .main-view {
+            display: none;
+            flex-grow: 1;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .main-view.active {
+            display: flex;
+        }
+
+
+        /* Estilos de chat */
+        .message-bubble {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .user-message {
+            background-color: var(--primary-main);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .bot-message {
+            background-color: var(--primary-light);
+            color: var(--primary-dark);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .bot-message button {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            margin-left: 8px;
+            cursor: pointer;
+            color: var(--primary-dark);
+            vertical-align: middle;
+        }
+
+        /* Área de input */
+        .input-area {
+            display: flex;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            gap: 12px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .input-area.hidden { display: none; }
+        .input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-area input[type="text"]:focus { border-color: var(--secondary-main); }
+        .input-area button {
+            background-color: var(--secondary-main);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .input-area button:hover {
+            background-color: var(--secondary-dark);
+            transform: translateY(-1px);
+        }
+
+        /* Modales y superposiciones */
+        .message-box {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white; padding: 25px; border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); z-index: 1000;
+            text-align: center; font-size: 1.1rem; color: #333;
+            max-width: 90%; box-sizing: border-box;
+        }
+        .message-box button {
+            background-color: var(--secondary-main); color: white; padding: 10px 20px;
+            border-radius: 10px; border: none; cursor: pointer;
+            margin-top: 15px; font-weight: 600; transition: background-color 0.2s;
+        }
+        .message-box button:hover { background-color: var(--secondary-dark); }
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); z-index: 999;
+        }
+
+        /* Indicador de carga */
+        .loading-indicator {
+            display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: var(--secondary-main);
+            border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Tarjetas de funcionalidades */
+        .feature-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px; padding: 24px;
+        }
+        .feature-card {
+            background-color: var(--background-light); border-radius: 15px; padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); display: flex; flex-direction: column;
+            align-items: flex-start; transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid #e0e7ff;
+        }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12); }
+        .card-icon { font-size: 2.5rem; margin-bottom: 12px; color: var(--secondary-main); }
+        .card-title { font-size: 1.3rem; font-weight: 600; color: var(--primary-dark); margin-bottom: 8px; }
+        .card-description { font-size: 0.95rem; color: var(--text-light); line-height: 1.5; margin-bottom: 16px; flex-grow: 1; }
+        .card-button {
+            background-color: var(--accent-pink); color: white; padding: 10px 18px; border-radius: 20px;
+            border: none; cursor: pointer; font-weight: 600; transition: background-color 0.2s;
+            align-self: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .card-button:hover { background-color: var(--accent-pink-dark); }
+        
+        /* Headers de sección */
+        .section-header {
+            padding: 16px 24px; background-color: #e0e7ff;
+            border-bottom: 1px solid var(--border-color); display: flex;
+            align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex-shrink: 0;
+        }
+        .section-header h2 { font-size: 1.25rem; font-weight: 600; color: var(--primary-dark); }
+        .back-button {
+            background-color: var(--secondary-main); color: white; padding: 8px 16px;
+            border-radius: 10px; border: none; cursor: pointer; font-weight: 600;
+            transition: background-color 0.2s; font-size: 0.875rem;
+        }
+        .back-button:hover { background-color: var(--secondary-dark); }
+
+        /* Layouts de contenido de dos columnas (Notebook, Reminders) */
+        .two-column-layout {
+            flex-grow: 1; display: flex; overflow: hidden;
+        }
+        .sidebar {
+            width: 33%; min-width: 180px; background-color: #f0f4ff;
+            padding: 16px; border-right: 1px solid var(--border-color);
+            overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+            flex-shrink: 0;
+        }
+        .editor {
+            flex-grow: 1; display: flex; flex-direction: column;
+            padding: 24px; background-color: #ffffff;
+            overflow-y: auto;
+        }
+        .editor-textarea {
+             flex-grow: 1;
+            width: 100%;
+            min-height: 200px;
+            resize: vertical;
+        }
+        .sidebar-item {
+            background-color: #e0e7ff; padding: 10px 12px; border-radius: 8px;
+            cursor: pointer; transition: background-color 0.2s, transform 0.1s;
+            font-size: 0.95rem; color: var(--text-dark); border: 1px solid #c7d2fe;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sidebar-item:hover { background-color: #c7d2fe; transform: translateY(-1px); }
+        .sidebar-item.selected {
+            background-color: var(--secondary-main); color: white;
+            font-weight: 600; border-color: var(--secondary-dark);
+        }
+        
+        /* Contenido de juegos y otras secciones */
+        .content-area {
+            flex-grow: 1; padding: 24px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background-color: var(--background-light); text-align: center;
+        }
+        .game-title, .section-title {
+            font-size: 2rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 1rem;
+        }
+        .game-description, .section-description {
+            font-size: 1.1rem; color: var(--text-light); margin-bottom: 1.5rem;
+            max-width: 600px;
+        }
+        .button-container {
+            display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px;
+        }
+        .primary-button {
+            background-color: var(--secondary-main); color: white; padding: 12px 20px; border-radius: 12px;
+            border: none; cursor: pointer; font-weight: 600; transition: background-color 0.2s;
+        }
+        .primary-button:hover { background-color: var(--secondary-dark); }
+
+        /* Memory Game */
+        #memoryGameGrid {
+            display: grid; 
+            gap: 15px; 
+            margin-top: 20px;
+            padding: 10px; 
+            background-color: #e0e7ff; 
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 600px; 
+            width: 100%; 
+        }
+        .memory-card {
+            aspect-ratio: 1 / 1;
+            background-color: var(--primary-main); 
+            border-radius: 10px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 2.2rem; 
+            cursor: pointer;
+            transition: transform 0.4s, box-shadow 0.2s; 
+            transform-style: preserve-3d;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            width: clamp(70px, 18vw, 120px); 
+            height: clamp(70px, 18vw, 120px); 
+        }
+        .memory-card:hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15); 
+        }
+        .memory-card .card-inner {
+            position: absolute; width: 100%; height: 100%;
+            transition: transform 0.4s; transform-style: preserve-3d;
+        }
+        .memory-card.flipped .card-inner { transform: rotateY(180deg); }
+        .memory-card.matched { opacity: 0.7; cursor: default; box-shadow: 0 2px 4px rgba(0,0,0,0.05); } 
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+        }
+        .card-front {
+            background-color: var(--primary-light); 
+            color: var(--primary-dark);
+            transform: rotateY(180deg);
+            font-size: 3rem; 
+        }
+        .card-back {
+            background-color: var(--secondary-main); 
+            font-size: 4rem; 
+            color: white; 
+            font-weight: bold;
+        }
+        
+        /* Breathing Game */
+        .breathing-circle {
+            width: 200px; height: 200px; background-color: #93c5fd;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 1.8rem; font-weight: 600; color: #1e3a8a;
+            transition: transform 4s ease-in-out, background-color 0.5s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .breathing-circle.inhale { transform: scale(1.2); background-color: #60a5fa; }
+        .breathing-circle.exhale { transform: scale(0.8); }
+        .breathing-circle.hold { background-color: var(--primary-main); color: white; }
+        .breathing-instructions {
+            margin-top: 20px; font-size: 1.5rem; font-weight: 700;
+            color: var(--primary-dark); min-height: 40px; text-align: center;
+        }
+
+        /* Achievements */
+        .achievements-list {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px; margin-top: 20px; max-width: 700px; width: 100%;
+            margin-left: auto; margin-right: auto;
+        }
+        .achievement-card {
+            background-color: #e0e7ff; border-radius: 12px; padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08); display: flex;
+            flex-direction: column; align-items: center; text-align: center;
+            border: 1px solid #c7d2fe; transition: transform 0.2s ease-in-out;
+        }
+        .achievement-card.unlocked {
+            background-color: var(--primary-light); border-color: var(--primary-main);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15); transform: translateY(-3px);
+        }
+        .achievement-card .icon { font-size: 3rem; margin-bottom: 10px; color: var(--secondary-main); }
+        .achievement-card.unlocked .icon { color: var(--primary-dark); }
+
+        /* General Game Styles */
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px; /* Max width for game content */
+            margin: auto;
+            padding: 20px;
+            background-color: #f0f4ff;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Hangman Game Specific Styles */
+        #hangmanWordDisplay {
+            font-size: 3rem;
+            font-weight: bold;
+            letter-spacing: 10px;
+            margin-bottom: 20px;
+            color: var(--primary-dark);
+        }
+        #hangmanWrongLetters {
+            font-size: 1.2rem;
+            color: #ef4444; /* Red for wrong letters */
+            margin-bottom: 10px;
+        }
+        #hangmanLives {
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+        }
+        #hangmanInput {
+            padding: 10px;
+            font-size: 1.5rem;
+            width: 60px;
+            text-align: center;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+        #hangmanCanvas {
+            border: 2px solid var(--primary-dark);
+            background-color: white;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        /* Tic Tac Toe Specific Styles */
+        #ticTacToeGrid {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background-color: var(--primary-dark);
+            border-radius: 10px;
+            overflow: hidden; /* Ensures rounded corners apply to the grid */
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .tic-tac-toe-cell {
+            width: 100px;
+            height: 100px;
+            background-color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            color: var(--secondary-dark); /* Default color for X/O */
+        }
+        .tic-tac-toe-cell:hover {
+            background-color: #f0f0f0;
+            transform: scale(1.02);
+        }
+        .tic-tac-toe-cell.x { color: var(--accent-pink); } /* Pink for X */
+        .tic-tac-toe-cell.o { color: var(--secondary-main); } /* Blue for O */
+        .tic-tac-toe-cell.winner { background-color: #dcfce7; } /* Light green for winner */
+
+
+        /* Media Queries for Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                height: 100svh;
+                overflow: hidden;
+            }
+            .container {
+                height: 100%;
+                width: 100%;
+                border-radius: 0;
+                box-shadow: none;
+                max-height: none;
+            }
+            .header { padding: 16px; }
+            .header h1 { font-size: 2rem; }
+            .header p { font-size: 0.9rem; }
+            .feature-cards-grid {
+                grid-template-columns: 1fr;
+                padding: 16px;
+                gap: 16px;
+            }
+            .content-area, .editor { padding: 16px; }
+
+            .two-column-layout {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                min-width: unset;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                max-height: 40%;
+            }
+            .editor {
+                width: 100%;
+                flex-grow: 1;
+            }
+            
+            /* Responsive memory game grid for smaller screens */
+            #memoryGameGrid {
+                grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); 
+                gap: 8px; 
+                max-width: 95%; 
+            }
+            .memory-card { 
+                font-size: 2.5rem; 
+                width: clamp(60px, 20vw, 90px); 
+                height: clamp(60px, 20vw, 90px);
+            }
+            .card-back {
+                font-size: 3.5rem; 
+            }
+            .game-title { font-size: 1.5rem; }
+            .breathing-circle { width: 150px; height: 150px; font-size: 1.4rem; }
+            .achievements-list { grid-template-columns: 1fr; }
+
+            /* Hangman responsiveness */
+            #hangmanWordDisplay { font-size: 2.5rem; letter-spacing: 5px;}
+            #hangmanInput { font-size: 1.2rem; width: 50px; }
+            #hangmanCanvas { width: 200px; height: 200px; }
+
+            /* Tic Tac Toe responsiveness */
+            #ticTacToeGrid {
+                grid-template-columns: repeat(3, 80px);
+                grid-template-rows: repeat(3, 80px);
+            }
+            .tic-tac-toe-cell {
+                width: 80px;
+                height: 80px;
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Main Header -->
+        <div class="header">
+            <!-- Default simple header icon -->
+            <div id="amigobotHeaderIconContainer" class="rounded-full mb-2 w-16 h-16 flex items-center justify-center bg-purple-300 overflow-hidden">
+                <span class="text-4xl font-bold text-purple-900">AB</span>
+            </div>
+            <h1>AmigoBot</h1>
+            <p>Tu amigo virtual que te acompaña, te enseña y te divierte</p>
+        </div>
+
+        <!-- Content Display Area -->
+        <div id="contentDisplayArea" class="content-display-area">
+            <!-- Loading Message -->
+            <div id="loadingAppMessage" class="loading-indicator">
+                <p class="text-gray-500 text-lg">Cargando AmigoBot...</p>
+                <div class="spinner mt-4"></div>
+            </div>
+
+            <!-- Main Menu View -->
+            <div id="mainCardsView" class="main-view">
+                <div class="feature-cards-grid"></div>
+            </div>
+            
+            <!-- Chat View -->
+            <div id="mainChatView" class="main-view">
+                <div class="section-header">
+                    <h2>Tu Conversación</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div id="chatMessagesContainer" class="flex-grow p-6 overflow-y-auto flex flex-col gap-4"></div>
+            </div>
+
+            <!-- Notebook View -->
+            <div id="mainNotebookView" class="main-view">
+                <div class="section-header">
+                    <h2>Mi Cuaderno Virtual</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div class="two-column-layout">
+                    <div id="notebookSidebar" class="sidebar">
+                        <h3 class="font-bold text-gray-700 mb-2 text-center">Mis Notas</h3>
+                        <button id="newNoteButton" class="primary-button text-sm w-full mb-2">+ Nueva Nota</button>
+                        <div id="notesList" class="flex flex-col gap-2"></div>
+                    </div>
+                    <div id="notebookEditor" class="editor">
+                        <input type="text" id="noteTitleInput" class="w-full p-3 border rounded-lg mb-4 text-lg font-semibold" placeholder="Título de la nota">
+                        <textarea id="notebookTextarea" class="editor-textarea w-full p-3 border rounded-lg" placeholder="Escribe aquí tus ideas..."></textarea>
+                        <div class="flex gap-3 mt-4 justify-end">
+                            <button id="deleteNotebookButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Eliminar</button>
+                            <button id="saveNotebookButton" class="primary-button">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <!-- Reminders View -->
+             <div id="mainRemindersView" class="main-view">
+                <div class="section-header">
+                    <h2>Mis Recordatorios de Salud</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div class="two-column-layout">
+                    <div id="remindersSidebar" class="sidebar">
+                        <h3 class="font-bold text-gray-700 mb-2 text-center">Mis Recordatorios</h3>
+                        <button id="newReminderButton" class="primary-button text-sm w-full mb-2">+ Nuevo Recordatorio</button>
+                        <div id="remindersList" class="flex flex-col gap-2"></div>
+                    </div>
+                    <div id="remindersEditor" class="editor">
+                        <input type="text" id="reminderTitleInput" class="w-full p-3 border rounded-lg mb-4 text-lg font-semibold" placeholder="Título (ej. Tomar medicina)">
+                        <textarea id="remindersTextarea" class="editor-textarea w-full p-3 border rounded-lg" placeholder="Detalles (ej. 1 pastilla a las 8 AM)"></textarea>
+                        <div class="flex gap-3 mt-4 justify-end">
+                            <button id="deleteReminderButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Eliminar</button>
+                            <button id="saveReminderButton" class="primary-button">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game View -->
+            <div id="mainGameView" class="main-view">
+                <div class="section-header">
+                    <h2 id="gameHeaderTitle">¡A Jugar!</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div id="gameContentArea" class="content-area"></div>
+            </div>
+
+            <!-- Avatar Design View - REMOVED -->
+
+            <!-- Other Views -->
+            <div id="mainTheoryView" class="main-view">
+                <div class="section-header"><h2>Material Teórico</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
+                <div id="theoryContentArea" class="content-area p-6 text-left"></div>
+            </div>
+            
+            <div id="mainStoriesView" class="main-view">
+                <div class="section-header"><h2>Cuentos Mágicos</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
+                <div id="storyContentArea" class="content-area p-6 text-justify"></div>
+            </div>
+
+            <div id="mainAchievementsView" class="main-view">
+                <div class="section-header"><h2>Mis Logros</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
+                <div id="achievementsContentArea" class="content-area"></div>
+            </div>
+
+            <div id="mainRelaxationView" class="main-view">
+                 <div class="section-header"><h2>Relajación y Ánimo</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
+                <div id="relaxationContentArea" class="content-area"></div>
+            </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div id="inputArea" class="input-area hidden">
+            <input type="text" id="messageInput" placeholder="Escribe tu mensaje aquí...">
+            <button id="sendButton">Enviar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp as initializeFirebaseApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global App State
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-amigobot-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        let app, auth, db, userId = null, isAuthReady = false;
+        let userName = sessionStorage.getItem('amigobotUserName');
+        let userAge = sessionStorage.getItem('amigobotUserAge');
+        let userEducation = sessionStorage.getItem('amigobotUserEducation');
+        let hasGreetedInChat = false;
+
+        // DOM Elements
+        const inputArea = document.getElementById('inputArea');
+        const allViews = document.querySelectorAll('.main-view');
+
+        // --- Core App Logic & Navigation ---
+        
+        function navigateTo(viewId) {
+            allViews.forEach(view => view.classList.toggle('active', view.id === viewId));
+            inputArea.classList.toggle('hidden', viewId !== 'mainChatView');
+        }
+
+        document.body.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-target]');
+            if (button) {
+                const targetViewId = button.dataset.target;
+                if (targetViewId) {
+                    navigateTo(targetViewId);
+                    // Trigger view-specific logic
+                    switch (targetViewId) {
+                        case 'mainCardsView': showFeatureCards(); break;
+                        case 'mainChatView': showChatArea(); break;
+                        case 'mainGameView': showGamesSelection(); break;
+                        case 'mainNotebookView': showNotebookArea(); break;
+                        case 'mainRemindersView': showRemindersArea(); break;
+                        case 'mainTheoryView': showTheoryArea(); break;
+                        case 'mainStoriesView': showStoriesArea(); break;
+                        case 'mainAchievementsView': showAchievementsArea(); break;
+                        case 'mainRelaxationView': showRelaxationOptions(); break;
+                    }
+                }
+            }
+        });
+
+        async function startAmigoBotApp() {
+            document.getElementById('loadingAppMessage').style.display = 'flex';
+            await initializeFirebase();
+            document.getElementById('loadingAppMessage').style.display = 'none';
+
+            if (!userName || !userAge || !userEducation) {
+                showRegistrationForm();
+            } else {
+                showFeatureCards();
+                navigateTo('mainCardsView');
+            }
+        }
+        
+        async function initializeFirebase() {
+             if (Object.keys(firebaseConfig).length > 0) {
+                app = initializeFirebaseApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                return new Promise(resolve => {
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                        } else {
+                            try {
+                                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                                if (token) {
+                                    await signInWithCustomToken(auth, token);
+                                } else {
+                                    await signInAnonymously(auth);
+                                }
+                                userId = auth.currentUser.uid;
+                            } catch (error) {
+                                console.error("Firebase Auth Error:", error);
+                                userId = crypto.randomUUID();
+                            }
+                        }
+                        isAuthReady = true;
+                        resolve(userId);
+                    });
+                });
+            } else {
+                userId = crypto.randomUUID();
+                isAuthReady = true;
+                return Promise.resolve(userId);
+            }
+        }
+        
+        startAmigoBotApp();
+
+        // --- Feature Cards ---
+        function showFeatureCards() {
+            const cardsContainer = document.querySelector('#mainCardsView .feature-cards-grid');
+            if(!cardsContainer) return;
+            const features = [
+                { id: 'Chat', icon: '💬', title: 'Chatea con AmigoBot', desc: 'Hazme preguntas, cuéntame cómo te sientes o simplemente hablemos.', target: 'mainChatView' },
+                { id: 'Games', icon: '🎮', title: 'Juegos Divertidos', desc: 'Aprende jugando con matemáticas, memoria y muchos juegos más.', target: 'mainGameView' },
+                { id: 'Notebook', icon: '📝', title: 'Mi Cuaderno Virtual', desc: 'Escribe y guarda todo lo que aprendes. Tu espacio personal.', target: 'mainNotebookView' },
+                { id: 'Theory', icon: '📖', title: 'Material Teórico', desc: 'Aprende sobre diferentes temas con explicaciones sencillas.', target: 'mainTheoryView' },
+                { id: 'Stories', icon: '📚', title: 'Cuentos Mágicos', desc: 'Escucha historias fantásticas que te transportarán a mundos increíbles.', target: 'mainStoriesView' },
+                { id: 'Achievements', icon: '🏆', title: 'Mis Logros', desc: 'Mira todos los premios que has ganado y tu progreso.', target: 'mainAchievementsView' },
+                { id: 'Reminders', icon: '⏰', title: 'Recordatorios de Salud', desc: 'Te ayudo a recordar tus medicinas y citas médicas.', target: 'mainRemindersView' },
+                { id: 'Relax', icon: '❤️', title: 'Relajación y Ánimo', desc: 'Ejercicios de respiración y palabras de ánimo para cuando necesites calma.', target: 'mainRelaxationView' }
+            ];
+            cardsContainer.innerHTML = features.map(f => `
+                <div class="feature-card">
+                    <span class="card-icon">${f.icon}</span>
+                    <h3 class="card-title">${f.title}</h3>
+                    <p class="card-description">${f.desc}</p>
+                    <button class="card-button" data-target="${f.target}">Empezar</button>
+                </div>
+            `).join('');
+        }
+        
+        // --- Registration & Modals ---
+        function showCustomModal(contentHtml, onCloseCallback = null) {
+            const existingModal = document.querySelector('.message-box');
+            if (existingModal) existingModal.remove();
+            const existingOverlay = document.querySelector('.overlay');
+            if (existingOverlay) existingOverlay.remove();
+
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            document.body.appendChild(overlay);
+
+            const modalBox = document.createElement('div');
+            modalBox.className = 'message-box';
+            modalBox.innerHTML = `<div>${contentHtml}</div>`;
+            
+            const closeButton = document.createElement('button');
+            closeButton.textContent = 'Entendido';
+            modalBox.appendChild(closeButton);
+            
+            document.body.appendChild(modalBox);
+
+            const closeModal = () => {
+                modalBox.remove();
+                overlay.remove();
+                if (onCloseCallback) onCloseCallback();
+            };
+            closeButton.addEventListener('click', closeModal);
+        }
+
+        function showRegistrationForm() {
+            const formHtml = `
+                <h2 class="text-2xl font-bold mb-4 text-indigo-700">¡Hola! Soy AmigoBot</h2>
+                <p class="mb-4">Para conocerte mejor, ¿me dices un poco sobre ti?</p>
+                <div class="text-left mb-3">
+                    <label for="regName" class="block text-gray-700 text-sm font-bold mb-1">Tu nombre:</label>
+                    <input type="text" id="regName" placeholder="Ej. Sofía" class="p-2 border border-gray-300 rounded-md w-full">
+                </div>
+                <div class="text-left mb-3">
+                    <label for="regAge" class="block text-gray-700 text-sm font-bold mb-1">Tu edad:</label>
+                    <input type="number" id="regAge" placeholder="Ej. 8" min="4" max="18" class="p-2 border border-gray-300 rounded-md w-full">
+                </div>
+            `;
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            document.body.appendChild(overlay);
+
+            const modalBox = document.createElement('div');
+            modalBox.className = 'message-box';
+            modalBox.innerHTML = formHtml;
+            
+            const submitButton = document.createElement('button');
+            submitButton.textContent = '¡Empezar a jugar!';
+            submitButton.className = 'primary-button w-full mt-2';
+            modalBox.appendChild(submitButton);
+
+            document.body.appendChild(modalBox);
+
+            submitButton.addEventListener('click', () => {
+                const name = document.getElementById('regName').value.trim();
+                const age = parseInt(document.getElementById('regAge').value, 10);
+
+                // Validate age to be between 4 and 18
+                if (name && age && !isNaN(age) && age >= 4 && age <= 18) {
+                    userName = name;
+                    userAge = age;
+                    // Determine userEducation based on age
+                    userEducation = (userAge <= 12) ? 'primaria' : 'secundaria';
+                    
+                    sessionStorage.setItem('amigobotUserName', userName);
+                    sessionStorage.setItem('amigobotUserAge', String(userAge));
+                    sessionStorage.setItem('amigobotUserEducation', userEducation); // Store determined education level
+                    modalBox.remove();
+                    overlay.remove();
+                    showFeatureCards();
+                    navigateTo('mainCardsView');
+                } else {
+                    // If validation fails, show the custom modal and pass showRegistrationForm as callback
+                    showCustomModal('Por favor, ingresa tu nombre y una edad válida (entre 4 y 18 años).', showRegistrationForm); 
+                }
+            });
+        }
+        
+        // --- Chat ---
+        function showChatArea() {
+            if (userName && !hasGreetedInChat) {
+                addMessage(`¡Hola, ${userName}! Soy AmigoBot. Pregúntame lo que quieras o cuéntame cómo te sientes.`, 'bot');
+                hasGreetedInChat = true;
+            }
+        }
+
+        /**
+         * Converts the given text to speech using the Web Speech API.
+         * Adjusts rate and pitch for a friendlier tone.
+         * @param {string} text - The text to be spoken.
+         */
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop any previous speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES'; // Set language to Spanish
+                utterance.rate = 0.95; // Slightly slower for a more friendly pace
+                utterance.pitch = 1.1; // Slightly higher pitch for a more friendly tone
+
+                // Optional: Try to select a specific voice if available
+                const voices = window.speechSynthesis.getVoices();
+                const friendlyVoice = voices.find(voice => voice.lang === 'es-ES' && voice.name.includes('Google') && !voice.name.includes('male')); // Prioritize a Google Spanish voice, preferably not explicitly male
+                if (friendlyVoice) {
+                    utterance.voice = friendlyVoice;
+                } else {
+                    // Fallback to any Spanish voice if specific one not found
+                    utterance.voice = voices.find(voice => voice.lang === 'es-ES');
+                }
+
+                window.speechSynthesis.speak(utterance);
+            } else {
+                console.warn('SpeechSynthesis API is not supported in this browser.');
+            }
+        }
+
+        /**
+         * Adds a message to the chat container.
+         * @param {string} text - The content of the message.
+         * @param {string} sender - The sender of the message ('user' or 'bot').
+         */
+        function addMessage(text, sender) {
+            const container = document.getElementById('chatMessagesContainer');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message-bubble', sender === 'user' ? 'user-message' : 'bot-message');
+            
+            // Reemplazar saltos de línea con <br> para HTML
+            const formattedText = text.replace(/\n/g, '<br>');
+            messageElement.innerHTML = `<span>${formattedText}</span>`;
+
+            if (sender === 'bot') {
+                const voiceButton = document.createElement('button');
+                voiceButton.innerHTML = '🔊'; // Speaker icon
+                voiceButton.title = 'Escuchar mensaje';
+                voiceButton.onclick = () => speak(text); // Play speech on click
+                messageElement.appendChild(voiceButton);
+                speak(text); // Automatically play bot message speech
+            }
+
+            container.appendChild(messageElement);
+            container.scrollTop = container.scrollHeight; // Scroll to the bottom of the chat
+        }
+        
+        /**
+         * Adds a bot message to the chat and plays it aloud.
+         * Note: This function is kept for compatibility but `addMessage` is preferred.
+         * @param {string} texto - The text of the bot message.
+         */
+        function agregarMensajeBot(texto) {
+            const chatMessages = document.getElementById('chatMessagesContainer'); // Changed ID to match
+            if (!chatMessages) {
+                console.error("Elemento #chatMessagesContainer no encontrado.");
+                return;
+            }
+            const mensajeBot = document.createElement('div');
+            mensajeBot.className = 'bot-message message-bubble'; // Added message-bubble class
+            mensajeBot.textContent = texto;
+            chatMessages.appendChild(mensajeBot);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            speak(texto); // Activate voice automatically
+        }
+        
+        /**
+         * Displays a bot response with a voice button.
+         * Note: This function is kept for compatibility but `addMessage` is preferred.
+         * @param {string} texto - The text of the bot response.
+         */
+        function mostrarRespuestaBot(texto) {
+            const chatMessages = document.getElementById('chatMessagesContainer'); // Changed ID to match
+             if (!chatMessages) {
+                console.error("Elemento #chatMessagesContainer no encontrado.");
+                return;
+            }
+            const mensajeBot = document.createElement('div');
+            mensajeBot.className = 'bot-message message-bubble'; // Added message-bubble class
+
+            // Create the response text
+            const textoRespuesta = document.createElement('span');
+            textoRespuesta.textContent = texto;
+
+            // Create the voice button
+            const btnVoz = document.createElement('button');
+            btnVoz.textContent = '🔊';
+            btnVoz.title = 'Escuchar respuesta';
+            btnVoz.style.marginLeft = '8px';
+            btnVoz.onclick = () => speak(texto);
+
+            // Add text and button to the bot card
+            mensajeBot.appendChild(textoRespuesta);
+            mensajeBot.appendChild(btnVoz);
+
+            chatMessages.appendChild(mensajeBot);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll down
+        }
+        
+        /**
+         * Sends a message to the Gemini API and displays the response.
+         * @param {string} message - The user's message.
+         */
+        async function sendMessageToGemini(message) {
+            const thinkingMessage = document.createElement('div');
+            thinkingMessage.className = 'message-bubble bot-message';
+            thinkingMessage.innerHTML = `<div class="flex items-center gap-2"><span>AmigoBot está pensando...</span><div class="spinner w-4 h-4"></div></div>`;
+            const container = document.getElementById('chatMessagesContainer');
+            container.appendChild(thinkingMessage);
+            container.scrollTop = container.scrollHeight;
+
+            let systemInstruction = '';
+            // Base instruction for list formatting
+            const listFormattingInstruction = "Cuando respondas con una lista, asegúrate de que esté bien organizada, numerada (por ejemplo, '1. Primer elemento', '2. Segundo elemento') y sin caracteres especiales adicionales o desordenados (ej. guiones, asteriscos, etc. no usar emojis ni viñetas raras).";
+
+            if (userEducation === 'primaria') {
+                systemInstruction = `Eres AmigoBot, un robot muy amigable, divertido y paciente que habla con niños en un hospital. Tu mejor amigo se llama ${userName}, tiene ${userAge} años y está en primaria. Responde a su pregunta de forma sencilla, positiva, alentadora y juguetona. NO uses emojis en tus respuestas. ${listFormattingInstruction} La pregunta del niño es: "${message}"`;
+            } else { // secundaria
+                systemInstruction = `Eres AmigoBot, un asistente virtual compañero, inteligente y empático para adolescentes en un hospital. Estás chateando con ${userName}, de ${userAge} años, que está en secundaria. Responde a su pregunta de forma clara, directa, ofreciendo apoyo y un tono amigable e ingenioso. NO uses emojis en tus respuestas. ${listFormattingInstruction} La pregunta del adolescente es: "${message}"`;
+            }
+
+            const chatHistory = [{ role: "user", parts: [{ text: systemInstruction }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // La clave API se proporcionará en tiempo de ejecución por Canvas
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                const result = await response.json();
+                thinkingMessage.remove(); 
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    addMessage(text, 'bot'); // Use addMessage to handle voice and button
+                } else {
+                    addMessage('Lo siento, no pude generar una respuesta en este momento.', 'bot');
+                }
+            } catch (error) {
+                console.error("Error al llamar a la API de Gemini:", error);
+                thinkingMessage.remove();
+                addMessage('Hubo un error al conectar con AmigoBot. Intenta de nuevo más tarde.', 'bot');
+            }
+        }
+        
+        const sendButton = document.getElementById('sendButton');
+        const messageInput = document.getElementById('messageInput');
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                addMessage(message, 'user');
+                sendMessageToGemini(message);
+                messageInput.value = '';
+            }
+        });
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendButton.click();
+        });
+
+        // --- All Other Sections ---
+        
+        // Notebook & Reminders (Shared Logic)
+        function setupTwoColumnSection(type) {
+            const isNotes = type === 'note';
+            const state = { items: [], currentId: null };
+            const listId = isNotes ? '#notesList' : '#remindersList';
+            const titleInputId = isNotes ? '#noteTitleInput' : '#reminderTitleInput';
+            const contentAreaId = isNotes ? '#notebookTextarea' : '#remindersTextarea';
+            const newButtonId = isNotes ? '#newNoteButton' : '#newReminderButton';
+            const saveButtonId = isNotes ? '#saveNotebookButton' : '#saveReminderButton';
+            const deleteButtonId = isNotes ? '#deleteNotebookButton' : '#deleteReminderButton';
+            const storageKey = `amigobot_${isNotes ? 'notes' : 'reminders'}_${userId}`;
+
+            const listContainer = document.querySelector(listId);
+            const titleInput = document.querySelector(titleInputId);
+            const contentArea = document.querySelector(contentAreaId);
+
+            const loadItems = () => {
+                const stored = localStorage.getItem(storageKey);
+                state.items = stored ? JSON.parse(stored) : [];
+            };
+
+            const saveItems = () => {
+                localStorage.setItem(storageKey, JSON.stringify(state.items));
+            };
+
+            const renderList = () => {
+                listContainer.innerHTML = '';
+                if (state.items.length === 0) {
+                     listContainer.innerHTML = `<p class="text-gray-500 text-sm mt-2 text-center">No hay ${isNotes ? 'notas' : 'recordatorios'}.</p>`;
+                }
+                state.items.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'sidebar-item';
+                    el.textContent = item.title || `Sin Título`;
+                    el.dataset.id = item.id;
+                    if (item.id === state.currentId) el.classList.add('selected');
+                    el.addEventListener('click', () => loadItemIntoEditor(item.id));
+                    listContainer.appendChild(el);
+                });
+            };
+            
+            const loadItemIntoEditor = (id) => {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    state.currentId = id;
+                    titleInput.value = item.title;
+                    contentArea.value = item.content;
+                    renderList();
+                }
+            };
+            
+            const clearEditor = () => {
+                state.currentId = null;
+                titleInput.value = '';
+                contentArea.value = '';
+                renderList();
+                titleInput.focus();
+            };
+
+            const saveCurrentItem = () => {
+                const title = titleInput.value.trim();
+                const content = contentArea.value.trim();
+                if (!title && !content) {
+                    showCustomModal(`La ${isNotes ? 'nota' : 'recordatorio'} está vacío.`);
+                    return;
+                }
+                if (state.currentId) {
+                    const index = state.items.findIndex(i => i.id === state.currentId);
+                    state.items[index] = { ...state.items[index], title, content };
+                } else {
+                    const newItem = { id: Date.now().toString(), title, content };
+                    state.items.push(newItem);
+                    state.currentId = newItem.id;
+                }
+                saveItems();
+                renderList();
+                showCustomModal(`¡${isNotes ? 'Nota' : 'Recordatorio'} guardado!`);
+            };
+
+            const deleteCurrentItem = () => {
+                if (!state.currentId) {
+                    showCustomModal(`No hay ${isNotes ? 'nota' : 'recordatorio'} seleccionado.`);
+                    return;
+                }
+                state.items = state.items.filter(i => i.id !== state.currentId);
+                saveItems();
+                clearEditor();
+            };
+
+            document.querySelector(newButtonId).onclick = clearEditor;
+            document.querySelector(saveButtonId).onclick = saveCurrentItem;
+            document.querySelector(deleteButtonId).onclick = deleteCurrentItem;
+            
+            loadItems();
+            if (state.items.length > 0) {
+                loadItemIntoEditor(state.items[0].id);
+            } else {
+                clearEditor();
+            }
+        }
+        
+        function showNotebookArea() { setupTwoColumnSection('note'); }
+        function showRemindersArea() { setupTwoColumnSection('reminder'); }
+
+
+        // Games Section
+        function showGamesSelection() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "¡A Jugar!";
+            area.innerHTML = `
+                <h3 class="game-title">¡Vamos a jugar!</h3>
+                <p class="game-description">Elige un juego para empezar la diversión:</p>
+                <div class="button-container">
+                    <button id="memoryGameButton" class="primary-button">Juego de Memoria</button>
+                    <button id="mathGameButton" class="primary-button">Juego de Matemáticas</button>
+                    <button id="historyGameButton" class="primary-button">Juego de Historia</button>
+                    <button id="hangmanGameButton" class="primary-button">Juego del Ahorcado</button>
+                    <button id="ticTacToeGameButton" class="primary-button">Tres en Raya</button>
+                </div>`;
+            document.getElementById('memoryGameButton').onclick = createMemoryGame;
+            document.getElementById('mathGameButton').onclick = createMathGame;
+            document.getElementById('historyGameButton').onclick = createHistoryGame;
+            document.getElementById('hangmanGameButton').onclick = createHangmanGame;
+            document.getElementById('ticTacToeGameButton').onclick = createTicTacToeGame;
+        }
+
+        function createMemoryGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Juego de Memoria";
+            // Different emoji sets and grid sizes based on education level
+            const emojis = userEducation === 'primaria' ? 
+                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕'] : // 8 unique, 16 cards for 4x4
+                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
+            
+            const gameEmojis = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
+            // Adjust grid columns based on number of emojis and screen width
+            let gridCols;
+            if (userEducation === 'primaria') {
+                gridCols = 4; // 4x4 grid for 16 cards
+            } else {
+                // For secundaria (24 cards), try 6 columns if wide enough, otherwise 4 or 5
+                gridCols = (window.innerWidth >= 768) ? 6 : ((window.innerWidth >= 500) ? 5 : 4);
+                // Ensure gridCols * num_rows >= gameEmojis.length. For 24 cards, 4x6 or 6x4.
+                // If gridCols is 5, it would be 5xsomething which is not ideal, so stick to 4 or 6.
+                if (gridCols === 5) gridCols = 4; // Fallback to 4 if 5 is chosen to keep even rows
+            }
+
+
+            area.innerHTML = `
+                <p class="game-description">Encuentra los pares de emojis. ¡Buena suerte!</p>
+                <div id="memoryGameGrid" style="grid-template-columns: repeat(${gridCols}, 1fr);"></div>
+                <div class="button-container">
+                    <button id="resetMemoryGame" class="primary-button">Reiniciar</button>
+                    <button id="backToGameSelection" class="primary-button">Volver</button>
+                </div>`;
+
+            const grid = document.getElementById('memoryGameGrid');
+            let flippedCards = [];
+            let matchedPairs = 0;
+            let canFlip = true;
+
+            gameEmojis.forEach(emoji => {
+                const card = document.createElement('div');
+                card.className = 'memory-card';
+                card.dataset.emoji = emoji;
+                // Changed the '❓' to a simple '?' with styling for better distinction
+                card.innerHTML = `<div class="card-inner"><div class="card-face card-back">?</div><div class="card-face card-front">${emoji}</div></div>`;
+                card.addEventListener('click', () => {
+                    if (!canFlip || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+                    card.classList.add('flipped');
+                    flippedCards.push(card);
+                    if (flippedCards.length === 2) {
+                        canFlip = false;
+                        const [card1, card2] = flippedCards;
+                        if (card1.dataset.emoji === card2.dataset.emoji) {
+                            card1.classList.add('matched');
+                            card2.classList.add('matched');
+                            matchedPairs++;
+                            flippedCards = [];
+                            canFlip = true;
+                            if (matchedPairs === emojis.length) {
+                                setTimeout(() => showCustomModal(`¡Felicidades, ${userName}! ¡Has encontrado todos los pares!`), 500);
+                            }
+                        } else {
+                            setTimeout(() => {
+                                card1.classList.remove('flipped');
+                                card2.classList.remove('flipped');
+                                flippedCards = [];
+                                canFlip = true;
+                            }, 1000);
+                        }
+                    }
+                });
+                grid.appendChild(card);
+            });
+
+            document.getElementById('resetMemoryGame').onclick = createMemoryGame;
+            document.getElementById('backToGameSelection').onclick = showGamesSelection;
+        }
+        
+        function createMathGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Juego de Matemáticas";
+            let score = 0;
+            let questionsAnswered = 0;
+            const maxQuestions = 10;
+            
+            const generateProblem = () => {
+                if (questionsAnswered >= maxQuestions) {
+                    area.innerHTML = `
+                        <h3 class="game-title">¡Juego Terminado!</h3>
+                        <p class="game-description">Tu puntuación final es: ${score} de ${maxQuestions}.</p>
+                        <div class="button-container">
+                             <button id="resetMathGame" class="primary-button">Jugar de Nuevo</button>
+                             <button id="backToGameSelection" class="primary-button">Volver</button>
+                        </div>`;
+                    document.getElementById('resetMathGame').onclick = createMathGame;
+                    document.getElementById('backToGameSelection').onclick = showGamesSelection;
+                    return;
+                }
+
+                let num1, num2, op, answer;
+                if (userEducation === 'primaria') {
+                    num1 = Math.floor(Math.random() * 20) + 1;
+                    num2 = Math.floor(Math.random() * 20) + 1;
+                    op = Math.random() > 0.5 ? '+' : '-';
+                    if (op === '-' && num1 < num2) [num1, num2] = [num2, num1]; // Ensure positive result for subtraction
+                    answer = op === '+' ? num1 + num2 : num1 - num2;
+                } else { // secundaria (more complex)
+                    const ops = ['+', '-', '*', '/'];
+                    op = ops[Math.floor(Math.random() * ops.length)];
+                    
+                    if (op === '/') {
+                        num2 = Math.floor(Math.random() * 10) + 2; // Divisor from 2 to 11
+                        // Ensure num1 is a multiple of num2 for integer results, keeping numbers manageable
+                        num1 = num2 * (Math.floor(Math.random() * 15) + 1); 
+                        answer = num1 / num2;
+                    } else {
+                        num1 = Math.floor(Math.random() * 50) + 1; // Larger numbers for other operations
+                        num2 = Math.floor(Math.random() * 20) + 1;
+                        if (op === '+') answer = num1 + num2;
+                        if (op === '-') {
+                            if (num1 < num2) [num1, num2] = [num2, num1]; // Ensure positive result
+                            answer = num1 - num2;
+                        }
+                        if (op === '*') answer = num1 * num2;
+                    }
+                }
+                
+                questionsAnswered++;
+                
+                area.innerHTML = `
+                    <p class="game-description">Pregunta ${questionsAnswered}/${maxQuestions} | Puntuación: ${score}</p>
+                    <div class="text-4xl font-bold my-4">${num1} ${op} ${num2} = ?</div>
+                    <input type="number" id="mathAnswerInput" class="p-2 border rounded-lg text-center text-2xl w-40">
+                    <div id="mathFeedback" class="h-6 mt-2 font-semibold"></div>
+                    <div class="button-container">
+                        <button id="submitMathAnswer" class="primary-button">Comprobar</button>
+                    </div>`;
+
+                const input = document.getElementById('mathAnswerInput');
+                input.focus();
+                input.onkeypress = (e) => { if(e.key === 'Enter') document.getElementById('submitMathAnswer').click() };
+                
+                document.getElementById('submitMathAnswer').onclick = () => {
+                    const userAnswer = parseInt(input.value, 10);
+                    const feedback = document.getElementById('mathFeedback');
+                    if (userAnswer === answer) {
+                        feedback.textContent = "¡Correcto! 🎉";
+                        feedback.style.color = 'green';
+                        score++;
+                    } else {
+                        feedback.textContent = `Incorrecto. La respuesta era ${answer}.`;
+                        feedback.style.color = 'red';
+                    }
+                    setTimeout(generateProblem, 1500);
+                };
+            };
+
+            generateProblem();
+        }
+
+        function createHistoryGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Juego de Historia";
+            
+            // Define questions based on user education level
+            const historyQuestions = {
+                primaria: {
+                    general: [
+                        { question: "¿Quién fue el primer hombre en pisar la Luna?", answer: "Neil Armstrong", options: ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "Michael Collins"] },
+                        { question: "¿Qué dinosaurio tenía un cuello muy largo?", answer: "Brachiosaurus", options: ["T-Rex", "Brachiosaurus", "Velociraptor", "Triceratops"] },
+                        { question: "¿Qué animal es famoso por hibernar?", answer: "Oso", options: ["León", "Elefante", "Oso", "Jirafa"] },
+                        { question: "¿Cuál es el animal terrestre más grande del mundo?", answer: "Elefante", options: ["Rinoceronte", "Hipopótamo", "Elefante", "Jirafa"] },
+                        { question: "¿Cuál es el planeta rojo?", answer: "Marte", options: ["Venus", "Marte", "Júpiter", "Saturno"] }
+                    ],
+                    argentina: [
+                        { question: "¿Cuándo se declaró la Independencia de Argentina?", answer: "9 de julio de 1816", options: ["25 de mayo de 1810", "9 de julio de 1816", "20 de junio de 1820", "17 de agosto de 1850"] },
+                        { question: "¿Quién fue el General que cruzó los Andes?", answer: "José de San Martín", options: ["Manuel Belgrano", "Juan Manuel de Rosas", "José de San Martín", "Martín Miguel de Güemes"] },
+                        { question: "¿Cuál es la capital de Argentina?", answer: "Buenos Aires", options: ["Córdoba", "Rosario", "Mendoza", "Buenos Aires"] },
+                        { question: "¿Qué símbolo patrio se asocia con Manuel Belgrano?", answer: "La Bandera", options: ["El Escudo", "La Bandera", "El Himno", "La Escarapela"] },
+                        { question: "¿Qué día se celebra la Revolución de Mayo?", answer: "25 de mayo", options: ["9 de julio", "17 de agosto", "25 de mayo", "12 de octubre"] }
+                    ]
+                },
+                secundaria: {
+                    general: [
+                        { question: "¿En qué año cayó el Muro de Berlín?", answer: "1989", options: ["1989", "1991", "1985", "1990"] },
+                        { question: "¿Quién escribió 'Don Quijote de la Mancha'?", answer: "Miguel de Cervantes", options: ["Gabriel García Márquez", "Jorge Luis Borges", "Miguel de Cervantes", "Federico García Lorca"] },
+                        { question: "¿Qué civilización construyó las pirámides de Giza?", answer: "Egipcios", options: ["Romanos", "Griegos", "Egipcios", "Mayas"] },
+                        { question: "¿Cuál fue la primera guerra mundial?", answer: "1914", options: ["1939", "1905", "1914", "1918"] },
+                        { question: "¿Quién fue el líder de la Alemania nazi?", answer: "Adolf Hitler", options: ["Benito Mussolini", "Winston Churchill", "Adolf Hitler", "Joseph Stalin"] }
+                    ],
+                    argentina: [
+                        { question: "¿En qué año se llevó a cabo la Batalla de la Vuelta de Obligado?", answer: "1845", options: ["1810", "1816", "1845", "1853"] },
+                        { question: "¿Quién fue el primer presidente constitucional de Argentina?", answer: "Justo José de Urquiza", options: ["Juan Manuel de Rosas", "Bartolomé Mitre", "Domingo Faustino Sarmiento", "Justo José de Urquiza"] },
+                        { question: "¿Qué evento marcó el inicio del Proceso de Reorganización Nacional en Argentina?", answer: "Golpe de Estado de 1976", options: ["Guerra de Malvinas", "Golpe de Estado de 1976", "El Cordobazo", "La Noche de los Lápices"] },
+                        { question: "¿Quién fue el líder de la Campaña del Desierto?", answer: "Julio Argentino Roca", options: ["Juan Domingo Perón", "Bernardino Rivadavia", "Julio Argentino Roca", "Carlos Pellegrini"] },
+                        { question: "¿En qué año se sancionó la Constitución Argentina actual?", answer: "1853", options: ["1810", "1816", "1853", "1994"] }
+                    ]
+                }
+            };
+
+            let currentCategory = '';
+            let currentQuestions = [];
+            let currentQuestionIndex = 0;
+            let score = 0;
+            const maxQuestions = 5; // Limiting to 5 questions per game for simplicity
+
+            const showCategorySelection = () => {
+                area.innerHTML = `
+                    <h3 class="game-title">Juego de Historia</h3>
+                    <p class="game-description">Elige una categoría para empezar:</p>
+                    <div class="button-container">
+                        <button id="historyGeneralButton" class="primary-button">Historia General</button>
+                        <button id="historyArgentinaButton" class="primary-button">Historia Argentina</button>
+                        <button id="backToGameSelection" class="primary-button">Volver a Juegos</button>
+                    </div>`;
+                document.getElementById('historyGeneralButton').onclick = () => startGame('general');
+                document.getElementById('historyArgentinaButton').onclick = () => startGame('argentina');
+                document.getElementById('backToGameSelection').onclick = showGamesSelection;
+            };
+
+            const startGame = (category) => {
+                currentCategory = category;
+                currentQuestions = [...historyQuestions[userEducation][category]].sort(() => 0.5 - Math.random());
+                currentQuestionIndex = 0;
+                score = 0;
+                displayQuestion();
+            };
+
+            const displayQuestion = () => {
+                if (currentQuestionIndex >= maxQuestions || currentQuestionIndex >= currentQuestions.length) {
+                    showGameResults();
+                    return;
+                }
+
+                const questionData = currentQuestions[currentQuestionIndex];
+                const shuffledOptions = [...questionData.options].sort(() => 0.5 - Math.random());
+
+                area.innerHTML = `
+                    <p class="game-description">Pregunta ${currentQuestionIndex + 1}/${maxQuestions} | Puntuación: ${score}</p>
+                    <h4 class="text-xl font-semibold my-4">${questionData.question}</h4>
+                    <div class="flex flex-col gap-3 w-full max-w-sm">
+                        ${shuffledOptions.map((option, index) => `
+                            <button class="primary-button history-option" data-answer="${option}">${option}</button>
+                        `).join('')}
+                    </div>
+                    <div id="historyFeedback" class="h-6 mt-4 font-semibold"></div>
+                    <div class="button-container">
+                        <button id="skipQuestion" class="primary-button">Saltar Pregunta</button>
+                    </div>
+                `;
+
+                document.querySelectorAll('.history-option').forEach(button => {
+                    button.onclick = (e) => checkAnswer(e.target.dataset.answer, questionData.answer);
+                });
+
+                document.getElementById('skipQuestion').onclick = () => {
+                    const feedback = document.getElementById('historyFeedback');
+                    feedback.textContent = `Saltaste. La respuesta correcta era: ${questionData.answer}.`;
+                    feedback.style.color = 'orange';
+                    setTimeout(() => {
+                        currentQuestionIndex++;
+                        displayQuestion();
+                    }, 1500);
+                };
+            };
+
+            const checkAnswer = (selectedAnswer, correctAnswer) => {
+                const feedback = document.getElementById('historyFeedback');
+                const options = document.querySelectorAll('.history-option');
+                
+                options.forEach(button => button.disabled = true); // Disable buttons after selection
+
+                if (selectedAnswer === correctAnswer) {
+                    feedback.textContent = "¡Correcto! 🎉";
+                    feedback.style.color = 'green';
+                    score++;
+                } else {
+                    feedback.textContent = `Incorrecto. La respuesta correcta era: ${correctAnswer}.`;
+                    feedback.style.color = 'red';
+                }
+
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    displayQuestion();
+                }, 1500);
+            };
+
+            const showGameResults = () => {
+                area.innerHTML = `
+                    <h3 class="game-title">¡Juego Terminado!</h3>
+                    <p class="game-description">Tu puntuación final es: ${score} de ${maxQuestions}.</p>
+                    <div class="button-container">
+                        <button id="resetHistoryGame" class="primary-button">Jugar de Nuevo</button>
+                        <button id="backToGameSelection" class="primary-button">Volver a Juegos</button>
+                    </div>`;
+                document.getElementById('resetHistoryGame').onclick = showCategorySelection; // Back to category selection
+                document.getElementById('backToGameSelection').onclick = showGamesSelection;
+            };
+
+            showCategorySelection(); // Start by showing category selection
+        }
+
+
+        // --- Hangman Game ---
+        function createHangmanGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Juego del Ahorcado";
+
+            const words = ["ELEFANTE", "COMPUTADORA", "AMISTAD", "CHOCOLATE", "AVENTURA", "MARIPOSA", "UNIVERSO", "FELICIDAD"];
+            let selectedWord = words[Math.floor(Math.random() * words.length)].toUpperCase();
+            let guessedLetters = [];
+            let wrongLetters = [];
+            let lives = 7; // Number of body parts to draw
+
+            const drawHangman = (livesRemaining) => {
+                const canvas = document.getElementById('hangmanCanvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#4c1d95'; // Primary dark color
+
+                // Gallow base
+                ctx.beginPath();
+                ctx.moveTo(10, 190);
+                ctx.lineTo(90, 190);
+                ctx.stroke();
+
+                // Gallow vertical
+                ctx.beginPath();
+                ctx.moveTo(30, 190);
+                ctx.lineTo(30, 10);
+                ctx.stroke();
+
+                // Gallow horizontal
+                ctx.beginPath();
+                ctx.moveTo(30, 10);
+                ctx.lineTo(70, 10);
+                ctx.stroke();
+
+                // Rope
+                ctx.beginPath();
+                ctx.moveTo(70, 10);
+                ctx.lineTo(70, 30);
+                ctx.stroke();
+
+                if (livesRemaining < 7) { // Head
+                    ctx.beginPath();
+                    ctx.arc(70, 40, 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 6) { // Body
+                    ctx.beginPath();
+                    ctx.moveTo(70, 50);
+                    ctx.lineTo(70, 90);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 5) { // Left arm
+                    ctx.beginPath();
+                    ctx.moveTo(70, 60);
+                    ctx.lineTo(50, 80);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 4) { // Right arm
+                    ctx.beginPath();
+                    ctx.moveTo(70, 60);
+                    ctx.lineTo(90, 80);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 3) { // Left leg
+                    ctx.beginPath();
+                    ctx.moveTo(70, 90);
+                    ctx.lineTo(50, 120);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 2) { // Right leg
+                    ctx.beginPath();
+                    ctx.moveTo(70, 90);
+                    ctx.lineTo(90, 120);
+                    ctx.stroke();
+                }
+                if (livesRemaining < 1) { // Sad face (eyes)
+                    ctx.beginPath();
+                    ctx.arc(67, 37, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.arc(73, 37, 1, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(70, 43, 4, 0, Math.PI, false); ctx.stroke(); // Mouth
+                }
+            };
+
+            const updateDisplay = () => {
+                const wordDisplay = document.getElementById('hangmanWordDisplay');
+                const wrongLettersDisplay = document.getElementById('hangmanWrongLetters');
+                const livesDisplay = document.getElementById('hangmanLives');
+
+                wordDisplay.textContent = selectedWord
+                    .split('')
+                    .map(letter => (guessedLetters.includes(letter) ? letter : '_'))
+                    .join(' ');
+                
+                wrongLettersDisplay.textContent = `Letras incorrectas: ${wrongLetters.join(', ')}`;
+                livesDisplay.textContent = `Vidas restantes: ${lives}`;
+
+                drawHangman(lives);
+
+                // Check for win/loss
+                if (!wordDisplay.textContent.includes('_')) {
+                    showCustomModal(`¡Felicidades, ${userName}! ¡Has adivinado la palabra: ${selectedWord}! 🎉`);
+                    disableGameControls();
+                } else if (lives <= 0) {
+                    showCustomModal(`¡Oh no, ${userName}! Te has quedado sin vidas. La palabra era: ${selectedWord}. 😞`);
+                    disableGameControls();
+                }
+            };
+
+            const disableGameControls = () => {
+                document.getElementById('hangmanInput').disabled = true;
+                document.getElementById('guessHangmanButton').disabled = true;
+            };
+
+            const enableGameControls = () => {
+                document.getElementById('hangmanInput').disabled = false;
+                document.getElementById('guessHangmanButton').disabled = false;
+                document.getElementById('hangmanInput').value = '';
+                document.getElementById('hangmanInput').focus();
+            };
+
+            area.innerHTML = `
+                <p class="game-description">Adivina la palabra oculta. Tienes 7 vidas. ¡Mucha suerte!</p>
+                <canvas id="hangmanCanvas" width="200" height="200"></canvas>
+                <div id="hangmanWordDisplay" class="mb-4"></div>
+                <div id="hangmanWrongLetters" class="mb-2"></div>
+                <div id="hangmanLives" class="mb-4"></div>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="hangmanInput" maxlength="1" class="uppercase">
+                    <button id="guessHangmanButton" class="primary-button">Adivinar</button>
+                </div>
+                <div class="button-container">
+                    <button id="resetHangmanGame" class="primary-button">Reiniciar</button>
+                    <button id="backToGameSelection" class="primary-button">Volver</button>
+                </div>`;
+
+            // Event Listeners
+            document.getElementById('guessHangmanButton').onclick = () => {
+                const input = document.getElementById('hangmanInput');
+                const guess = input.value.toUpperCase();
+                input.value = ''; // Clear input
+
+                if (!guess.match(/[A-Z]/) || guess.length !== 1) {
+                    showCustomModal('Por favor, ingresa solo una letra válida.');
+                    return;
+                }
+
+                if (guessedLetters.includes(guess) || wrongLetters.includes(guess)) {
+                    showCustomModal(`Ya adivinaste la letra "${guess}". ¡Intenta con otra!`);
+                    return;
+                }
+
+                if (selectedWord.includes(guess)) {
+                    guessedLetters.push(guess);
+                } else {
+                    wrongLetters.push(guess);
+                    lives--;
+                }
+                updateDisplay();
+            };
+
+            document.getElementById('hangmanInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('guessHangmanButton').click();
+                }
+            });
+
+            document.getElementById('resetHangmanGame').onclick = createHangmanGame;
+            document.getElementById('backToGameSelection').onclick = showGamesSelection;
+
+            updateDisplay(); // Initial display
+            enableGameControls();
+        }
+
+        // --- Tic Tac Toe Game ---
+        function createTicTacToeGame() {
+            const area = document.getElementById('gameContentArea');
+            document.getElementById('gameHeaderTitle').textContent = "Tres en Raya";
+
+            let board = ['', '', '', '', '', '', '', '', ''];
+            let currentPlayer = 'X';
+            let gameActive = true;
+
+            const winConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6]             // Diagonals
+            ];
+
+            const checkWin = () => {
+                for (let i = 0; i < winConditions.length; i++) {
+                    const [a, b, c] = winConditions[i];
+                    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                        gameActive = false;
+                        document.getElementById('ticTacToeGrid').children[a].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[b].classList.add('winner');
+                        document.getElementById('ticTacToeGrid').children[c].classList.add('winner');
+                        showCustomModal(`¡${board[a]} ha ganado! 🎉`);
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            const checkDraw = () => {
+                if (!board.includes('') && !checkWin()) {
+                    gameActive = false;
+                    showCustomModal("¡Es un empate! 🤝");
+                    return true;
+                }
+                return false;
+            };
+
+            const handleCellClick = (index) => {
+                if (!gameActive || board[index] !== '') return;
+
+                board[index] = currentPlayer;
+                document.getElementById('ticTacToeGrid').children[index].textContent = currentPlayer;
+                document.getElementById('ticTacToeGrid').children[index].classList.add(currentPlayer.toLowerCase());
+
+                if (!checkWin() && !checkDraw()) {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    document.getElementById('ticTacToeStatus').textContent = `Turno de ${currentPlayer}`;
+                } else {
+                    document.getElementById('ticTacToeStatus').textContent = `Juego Terminado.`;
+                }
+            };
+
+            const resetGame = () => {
+                board = ['', '', '', '', '', '', '', '', ''];
+                currentPlayer = 'X';
+                gameActive = true;
+                document.getElementById('ticTacToeStatus').textContent = `Turno de ${currentPlayer}`;
+                const cells = document.querySelectorAll('.tic-tac-toe-cell');
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('x', 'o', 'winner');
+                });
+            };
+
+            area.innerHTML = `
+                <p class="game-description">Juega al clásico Tres en Raya contra un amigo.</p>
+                <div id="ticTacToeStatus" class="text-xl font-semibold mb-4 text-primary-dark">Turno de X</div>
+                <div id="ticTacToeGrid">
+                    ${Array(9).fill().map((_, i) => `<div class="tic-tac-toe-cell" data-index="${i}"></div>`).join('')}
+                </div>
+                <div class="button-container">
+                    <button id="resetTicTacToeGame" class="primary-button">Reiniciar Juego</button>
+                    <button id="backToGameSelection" class="primary-button">Volver</button>
+                </div>
+            `;
+
+            // Attach event listeners
+            document.querySelectorAll('.tic-tac-toe-cell').forEach(cell => {
+                cell.addEventListener('click', () => handleCellClick(parseInt(cell.dataset.index)));
+            });
+            document.getElementById('resetTicTacToeGame').onclick = resetGame;
+            document.getElementById('backToGameSelection').onclick = showGamesSelection;
+        }
+
+
+        // Other Sections
+        function showTheoryArea() {
+            const area = document.getElementById('theoryContentArea');
+            let content = '';
+             if (userEducation === 'primaria') {
+                content = `
+                    <h3 class="section-title">Descubre el Cuerpo Humano</h3>
+                    <p class="section-description">¡Hola! Tu cuerpo es como una máquina increíble. Tienes un corazón que late sin parar para llevar energía a todas partes, y pulmones que toman aire para que puedas correr y jugar. ¡Tus huesos son el soporte y tus músculos te dan la fuerza para moverte!</p>
+                    <img src="https://placehold.co/300x200/c7d2fe/4c1d95?text=Cuerpo+Humano" alt="Ilustración del cuerpo humano" class="rounded-lg my-4 shadow-md">
+                `;
+            } else { 
+                content = `
+                    <h3 class="section-title">Explorando la Célula</h3>
+                    <p class="section-description">La célula es la unidad de vida más pequeña. Las células eucariotas, como las nuestras, tienen un núcleo que protege el ADN y orgánulos como las mitocondrias, que son las centrales energéticas de la célula, ¡convirtiendo el alimento en energía que podemos usar!</p>
+                     <img src="https://placehold.co/300x200/c7d2fe/4c1d95?text=Célula+Eucariota" alt="Ilustración de una célula" class="rounded-lg my-4 shadow-md">
+                `;
+            }
+            area.innerHTML = content;
+        }
+
+        function showStoriesArea() {
+            const area = document.getElementById('storyContentArea');
+             let content = '';
+             if (userEducation === 'primaria') {
+                content = `
+                    <h3 class="section-title">El Elefante Que Quería Volar</h3>
+                    <p class="section-description">Había una vez un elefantito que soñaba con volar. Aunque todos le decían que era imposible, él agitaba sus grandes orejas cada día, esperando elevarse. Un día, con un gran salto y mucha fé, logró planear por el aire, demostrando que creer en ti mismo es el primer paso para lograr lo increíble.</p>
+                `;
+            } else {
+                content = `
+                    <h3 class="section-title">El Enigma del Bosque Susurrante</h3>
+                    <p class="section-description">Una joven erudita, Elara, se adentró en un bosque del que se decía guardaba un antiguo enigma. Siguiendo un mapa, encontró una gruta con una esfera de cristal. Al tocarla, no encontró un monstruo, sino visiones de conocimiento antiguo. Aprendió que la verdadera sabiduría es el mayor de los tesoros.</p>
+                `;
+            }
+            area.innerHTML = content;
+        }
+
+        function showAchievementsArea() {
+            const area = document.getElementById('achievementsContentArea');
+            area.innerHTML = `
+                 <h3 class="section-title">¡Tus Logros Especiales!</h3>
+                 <p class="section-description">Aquí se mostrarán las medallas que ganes. ¡Sigue jugando y aprendiendo para desbloquearlas todas!</p>
+                 <div class="achievements-list">
+                    <div class="achievement-card"><span class="icon">🧠</span><h4>Maestro de la Memoria</h4><p>Completa el juego de memoria.</p></div>
+                    <div class="achievement-card"><span class="icon">➕</span><h4>Genio Matemático</h4><p>Completa el juego de matemáticas.</p></div>
+                    <div class="achievement-card"><span class="icon">📚</span><h4>Historiador Novato</h4><p>Completa el juego de historia (General).</p></div>
+                    <div class="achievement-card"><span class="icon">🇦🇷</span><h4>Historiador Argentino</h4><p>Completa el juego de historia (Argentina).</p></div>
+                    <div class="achievement-card"><span class="icon">🤔</span><h4>Maestro del Ahorcado</h4><p>Gana una partida de Ahorcado.</p></div>
+                    <div class="achievement-card"><span class="icon">❌⭕</span><h4>Campeón de Tres en Raya</h4><p>Gana una partida de Tres en Raya.</p></div>
+                 </div>
+            `;
+        }
+
+        function showRelaxationOptions() {
+            const area = document.getElementById('relaxationContentArea');
+            area.innerHTML = `
+                <h3 class="section-title">Respira y Relájate</h3>
+                <p class="section-description">Sigue el círculo para hacer un ejercicio de respiración. Te ayudará a sentirte más tranquilo y calmado.</p>
+                <div id="breathingCircle" class="breathing-circle">Respira</div>
+                <p id="breathingInstructions" class="breathing-instructions"></p>
+                <div class="button-container">
+                    <button id="startBreathing" class="primary-button">Comenzar</button>
+                    <button id="stopBreathing" class="primary-button hidden">Detener</button>
+                </div>
+            `;
+            
+            let breathingInterval;
+            const breathingCircle = document.getElementById('breathingCircle');
+            const breathingInstructions = document.getElementById('breathingInstructions');
+            const startBtn = document.getElementById('startBreathing');
+            const stopBtn = document.getElementById('stopBreathing');
+            const phases = [
+                { text: "Inhala...", duration: 4000, class: "inhale" },
+                { text: "Sostén...", duration: 2000, class: "hold" },
+                { text: "Exhala...", duration: 6000, class: "exhale" }
+            ];
+            let currentPhaseIndex = 0;
+
+            const playPhase = () => {
+                const phase = phases[currentPhaseIndex];
+                breathingCircle.className = `breathing-circle ${phase.class}`;
+                breathingInstructions.textContent = phase.text;
+                breathingInterval = setTimeout(() => {
+                    currentPhaseIndex = (currentPhaseIndex + 1) % phases.length;
+                    playPhase();
+                }, phase.duration);
+            };
+
+            const stopCycle = () => {
+                clearInterval(breathingInterval);
+                breathingCircle.className = 'breathing-circle';
+                breathingInstructions.textContent = '';
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+            };
+
+            startBtn.onclick = () => {
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                currentPhaseIndex = 0;
+                playPhase();
+            };
+            stopBtn.onclick = stopCycle;
+        }
+    </script>
+</body>
+</html>
