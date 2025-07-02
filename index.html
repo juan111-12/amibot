@@ -598,6 +598,24 @@
             .drawing-controls input[type="range"] {
                 width: 100%;
             }
+
+            /* Chat specific adjustments for mobile */
+            .input-area {
+                position: fixed; /* Fixes it to the viewport */
+                bottom: 0; /* Aligns to the bottom */
+                left: 0;
+                right: 0;
+                width: 100%;
+                padding: 10px 16px; /* Adjust padding for mobile */
+                box-sizing: border-box; /* Include padding in width */
+                background-color: #ffffff; /* Ensure it has a background */
+                border-top: 1px solid var(--border-color);
+                z-index: 10; /* Ensure it's above other content */
+            }
+
+            #chatMessagesContainer {
+                padding-bottom: 80px; /* Add padding to account for fixed input area */
+            }
         }
     </style>
 </head>
@@ -840,7 +858,7 @@
             const cardsContainer = document.querySelector('#mainCardsView .feature-cards-grid');
             if(!cardsContainer) return;
             const features = [
-                { id: 'Chat', icon: '�', title: 'Chatea con AmigoBot', desc: 'Hazme preguntas, cuéntame cómo te sientes o simplemente hablemos.', target: 'mainChatView' },
+                { id: 'Chat', icon: '💬', title: 'Chatea con AmigoBot', desc: 'Hazme preguntas, cuéntame cómo te sientes o simplemente hablemos.', target: 'mainChatView' },
                 { id: 'Games', icon: '🎮', title: 'Juegos Divertidos', desc: 'Aprende jugando con matemáticas, memoria y muchos juegos más.', target: 'mainGameView' },
                 { id: 'Notebook', icon: '📝', title: 'Mi Cuaderno Virtual', desc: 'Escribe y guarda todo lo que aprendes. Tu espacio personal.', target: 'mainNotebookView' },
                 { id: 'Theory', icon: '📖', title: 'Material Teórico', desc: 'Aprende sobre diferentes temas con explicaciones sencillas.', target: 'mainTheoryView' },
@@ -1118,7 +1136,7 @@
             
             const chatHistory = [{ role: "user", parts: [{ text: systemInstruction }] }];
             const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyD631XzOoVc0XGqNhlY2fUh8Bj05rblZG8";  // La clave API se proporcionará en tiempo de ejecución por Canvas
+            const apiKey ="AIzaSyD631XzOoVc0XGqNhlY2fUh8Bj05rblZG8"; // La clave API se proporcionará en tiempo de ejecución por Canvas
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {
@@ -1294,7 +1312,7 @@
             document.getElementById('gameHeaderTitle').textContent = "Juego de Memoria";
             // Different emoji sets and grid sizes based on education level
             const emojis = (userGradeLevel <= 6) ? 
-                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕'] : // 8 unique, 16 cards for 4x4
+                ['😀', '😂', '😍', '🤩', '👍', '🐱', '�', '🍕'] : // 8 unique, 16 cards for 4x4
                 ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
             
             const gameEmojis = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
