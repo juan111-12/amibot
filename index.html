@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AmigoBot</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">\
     <style>
         :root {
             --primary-light: #d8b4fe; /* Morado 300 */
@@ -532,16 +532,19 @@
             }
             .header h1 {
                 font-size: 1.8rem; /* Smaller font size */
+                margin-bottom: 4px; /* Reduced margin */
             }
             .header p {
                 font-size: 0.8rem; /* Smaller font size */
+                max-width: 95%; /* Increased width for text */
             }
             #amigobotHeaderIconContainer {
-                width: 50px; /* Smaller icon container */
-                height: 50px;
+                width: 40px; /* Smaller icon container */
+                height: 40px;
+                margin-bottom: 4px; /* Reduced margin */
             }
             #amigobotHeaderIconContainer span {
-                font-size: 2.5rem; /* Adjusted icon font size */
+                font-size: 2rem; /* Adjusted icon font size */
             }
             .feature-cards-grid {
                 grid-template-columns: 1fr;
@@ -756,6 +759,17 @@
                  <div class="section-header"><h2>Relajación y Ánimo</h2><button class="back-button" data-target="mainCardsView">Volver</button></div>
                 <div id="relaxationContentArea" class="content-area"></div>
             </div>
+
+            <!-- Parent Panel View (NEW) -->
+            <div id="mainParentsView" class="main-view">
+                <div class="section-header">
+                    <h2>Panel de Padres</h2>
+                    <button class="back-button" data-target="mainCardsView">Volver</button>
+                </div>
+                <div id="parentsPanelContentArea" class="content-area p-6 text-center">
+                    <!-- Content will be dynamically loaded after login -->
+                </div>
+            </div>
         </div>
 
         <!-- Chat Input Area -->
@@ -786,6 +800,25 @@
         const inputArea = document.getElementById('inputArea');
         const allViews = document.querySelectorAll('.main-view');
 
+        // Helper functions for localStorage
+        function getStoredData(key, defaultValue = null) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultValue;
+            } catch (e) {
+                console.error(`Error parsing localStorage key "${key}":`, e);
+                return defaultValue;
+            }
+        }
+
+        function setStoredData(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                console.error(`Error setting localStorage key "${key}":`, e);
+            }
+        }
+
         // --- Core App Logic & Navigation ---
         
         function navigateTo(viewId) {
@@ -811,6 +844,7 @@
                         case 'mainAchievementsView': showAchievementsArea(); break;
                         case 'mainRelaxationView': showRelaxationOptions(); break;
                         case 'mainDailyActivityView': showDailyActivityView(); break; // New case for daily activity
+                        case 'mainParentsView': showParentsPanel(); break; // New case for Parents Panel
                     }
                 }
             }
@@ -879,7 +913,8 @@
                 { id: 'Achievements', icon: '🏆', title: 'Mis Logros', desc: 'Mira todos los premios que has ganado y tu progreso.', target: 'mainAchievementsView' },
                 { id: 'Reminders', icon: '⏰', title: 'Recordatorios de Salud', desc: 'Te ayudo a recordar tus medicinas y citas médicas.', target: 'mainRemindersView' },
                 { id: 'Relax', icon: '❤️', title: 'Relajación y Ánimo', desc: 'Ejercicios de respiración y palabras de ánimo para cuando necesites calma.', target: 'mainRelaxationView' },
-                { id: 'DailyActivity', icon: '💡', title: '¿Qué hacer hoy?', desc: 'Recibe una sugerencia de actividad divertida y educativa.', target: 'mainDailyActivityView' } // New Feature
+                { id: 'DailyActivity', icon: '💡', title: '¿Qué hacer hoy?', desc: 'Recibe una sugerencia de actividad divertida y educativa.', target: 'mainDailyActivityView' }, // New Feature
+                { id: 'ParentsPanel', icon: '👨‍👩‍👧', title: 'Panel de Padres', desc: 'Un espacio para que los padres supervisen y gestionen la experiencia.', target: 'mainParentsView' } // New Parent Panel Feature
             ];
             cardsContainer.innerHTML = features.map(f => `
                 <div class="feature-card">
@@ -896,7 +931,7 @@
             const existingModal = document.querySelector('.message-box');
             if (existingModal) existingModal.remove();
             const existingOverlay = document.querySelector('.overlay');
-            if (existingOverlay) existing.remove();
+            if (existingOverlay) existingOverlay.remove(); /* Fixed: ensure overlay is removed */
 
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
@@ -906,18 +941,27 @@
             modalBox.className = 'message-box';
             modalBox.innerHTML = `<div>${contentHtml}</div>`;
             
-            const closeButton = document.createElement('button');
-            closeButton.textContent = 'Entendido';
-            modalBox.appendChild(closeButton);
-            
-            document.body.appendChild(modalBox);
-
+            // Define closeModal here so it's accessible
             const closeModal = () => {
                 modalBox.remove();
                 overlay.remove();
                 if (onCloseCallback) onCloseCallback();
             };
-            closeButton.addEventListener('click', closeModal);
+
+            // Only add a close button if no specific form is being handled
+            if (!onCloseCallback) { // If onCloseCallback is null, it's a simple message box
+                const closeButton = document.createElement('button');
+                closeButton.textContent = 'Entendido';
+                modalBox.appendChild(closeButton);
+                closeButton.addEventListener('click', closeModal);
+            }
+            
+            document.body.appendChild(modalBox);
+
+            // If there's a specific form, the form itself will handle closing the modal
+            if (onCloseCallback) {
+                overlay.addEventListener('click', closeModal); // Allow clicking outside to close for forms
+            }
         }
 
         /**
@@ -1074,6 +1118,11 @@
 
             container.appendChild(messageElement);
             container.scrollTop = container.scrollHeight; // Scroll to the bottom of the chat
+
+            // Store message in localStorage
+            const chatHistory = getStoredData(`amigobot_chat_history_${userId}`, []);
+            chatHistory.push({ sender, text, timestamp: new Date().toISOString() });
+            setStoredData(`amigobot_chat_history_${userId}`, chatHistory);
         }
         
         /**
@@ -1082,17 +1131,7 @@
          * @param {string} texto - The text of the bot message.
          */
         function agregarMensajeBot(texto) {
-            const chatMessages = document.getElementById('chatMessagesContainer'); // Changed ID to match
-            if (!chatMessages) {
-                console.error("Elemento #chatMessagesContainer no encontrado.");
-                return;
-            }
-            const mensajeBot = document.createElement('div');
-            mensajeBot.className = 'bot-message message-bubble'; // Added message-bubble class
-            mensajeBot.textContent = texto;
-            chatMessages.appendChild(mensajeBot);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            speak(texto, false); // Activate voice automatically, not a story
+            addMessage(texto, 'bot');
         }
         
         /**
@@ -1101,31 +1140,7 @@
          * @param {string} texto - The text of the bot response.
          */
         function mostrarRespuestaBot(texto) {
-            const chatMessages = document.getElementById('chatMessagesContainer'); // Changed ID to match
-             if (!chatMessages) {
-                console.error("Elemento #chatMessagesContainer no encontrado.");
-                return;
-            }
-            const mensajeBot = document.createElement('div');
-            mensajeBot.className = 'bot-message message-bubble'; // Added message-bubble class
-
-            // Create the response text
-            const textoRespuesta = document.createElement('span');
-            textoRespuesta.textContent = texto;
-
-            // Create the voice button
-            const btnVoz = document.createElement('button');
-            btnVoz.textContent = '🔊';
-            btnVoz.title = 'Escuchar respuesta';
-            btnVoz.style.marginLeft = '8px';
-            btnVoz.onclick = () => speak(texto, false);
-
-            // Add text and button to the bot card
-            mensajeBot.appendChild(textoRespuesta);
-            mensajeBot.appendChild(btnVoz);
-
-            chatMessages.appendChild(mensajeBot);
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll down
+            addMessage(texto, 'bot');
         }
         
         /**
@@ -1209,12 +1224,11 @@
             const contentArea = document.querySelector(contentAreaId);
 
             const loadItems = () => {
-                const stored = localStorage.getItem(storageKey);
-                state.items = stored ? JSON.parse(stored) : [];
+                state.items = getStoredData(storageKey, []);
             };
 
             const saveItems = () => {
-                localStorage.setItem(storageKey, JSON.stringify(state.items));
+                setStoredData(storageKey, state.items);
             };
 
             const renderList = () => {
@@ -1320,6 +1334,18 @@
             document.getElementById('drawingGameButton').onclick = createDrawingGame; // Link to new drawing game
         }
 
+        // Function to record game results
+        function recordGameResult(gameType, result, score = null) {
+            const gameProgress = getStoredData(`amigobot_game_progress_${userId}`, []);
+            gameProgress.push({
+                gameType: gameType,
+                result: result,
+                score: score,
+                timestamp: new Date().toISOString()
+            });
+            setStoredData(`amigobot_game_progress_${userId}`, gameProgress);
+        }
+
         function createMemoryGame() {
             const area = document.getElementById('gameContentArea');
             document.getElementById('gameHeaderTitle').textContent = "Juego de Memoria";
@@ -1375,7 +1401,10 @@
                             flippedCards = [];
                             canFlip = true;
                             if (matchedPairs === emojis.length) {
-                                setTimeout(() => showCustomModal(`¡Felicidades, ${userName}! ¡Has encontrado todos los pares!`), 500);
+                                setTimeout(() => {
+                                    showCustomModal(`¡Felicidades, ${userName}! ¡Has encontrado todos los pares!`);
+                                    recordGameResult('Memoria', 'Ganado');
+                                }, 500);
                             }
                         } else {
                             setTimeout(() => {
@@ -1412,6 +1441,7 @@
                         </div>`;
                     document.getElementById('resetMathGame').onclick = createMathGame;
                     document.getElementById('backToGameSelection').onclick = showGamesSelection;
+                    recordGameResult('Matemáticas', score >= maxQuestions / 2 ? 'Ganado' : 'Perdido', score);
                     return;
                 }
 
@@ -1467,7 +1497,7 @@
                     const userAnswer = parseInt(input.value, 10);
                     const feedback = document.getElementById('mathFeedback');
                     if (userAnswer === answer) {
-                        feedback.textContent = "¡Correcto! 🎉";
+                        feedback.textContent = "¡Correcto! �";
                         feedback.style.color = 'green';
                         score++;
                     } else {
@@ -1619,6 +1649,7 @@
                     </div>`;
                 document.getElementById('resetHistoryGame').onclick = showCategorySelection; // Back to category selection
                 document.getElementById('backToGameSelection').onclick = showGamesSelection;
+                recordGameResult(`Historia (${currentCategory === 'general' ? 'General' : 'Argentina'})`, score >= maxQuestions / 2 ? 'Ganado' : 'Perdido', score);
             };
 
             showCategorySelection(); // Start by showing category selection
@@ -1979,9 +2010,11 @@
                 if (!wordDisplay.textContent.includes('_')) {
                     showCustomModal(`¡Felicidades, ${userName}! ¡Has adivinado la palabra: ${selectedWord}! 🎉`);
                     disableGameControls();
+                    recordGameResult('Ahorcado', 'Ganado');
                 } else if (lives <= 0) {
                     showCustomModal(`¡Oh no, ${userName}! Te has quedado sin vidas. La palabra era: ${selectedWord}. 😞`);
                     disableGameControls();
+                    recordGameResult('Ahorcado', 'Perdido');
                 }
             };
 
@@ -2119,6 +2152,7 @@
                     highlightWinningCells(currentPlayer);
                     showCustomModal(`¡Felicidades, ${userName}! ¡Has ganado! 🎉`);
                     disableBoardClicks();
+                    recordGameResult('Tres en Raya', 'Ganado');
                     return;
                 }
 
@@ -2126,6 +2160,7 @@
                     gameActive = false;
                     showCustomModal("¡Es un empate! 🤝");
                     disableBoardClicks();
+                    recordGameResult('Tres en Raya', 'Empate');
                     return;
                 }
 
@@ -2230,6 +2265,7 @@
                     highlightWinningCells(currentPlayer);
                     showCustomModal(`¡AmigoBot ha ganado! 🤖`);
                     disableBoardClicks();
+                    recordGameResult('Tres en Raya', 'Perdido');
                     return;
                 }
 
@@ -2237,6 +2273,7 @@
                     gameActive = false;
                     showCustomModal("¡Es un empate! 🤝");
                     disableBoardClicks();
+                    recordGameResult('Tres en Raya', 'Empate');
                     return;
                 }
 
@@ -2612,7 +2649,7 @@
                     <div class="achievement-card"><span class="icon">🧠</span><h4>Maestro de la Memoria</h4><p>Completa el juego de memoria.</p></div>
                     <div class="achievement-card"><span class="icon">➕</span><h4>Genio Matemático</h4><p>Completa el juego de matemáticas.</p></div>
                     <div class="achievement-card"><span class="icon">📚</span><h4>Historiador Novato</h4><p>Completa el juego de historia (General).</p></div>
-                    <div class="achievement-card"><span class="icon">�🇷</span><h4>Historiador Argentino</h4><p>Completa el juego de historia (Argentina).</p></div>
+                    <div class="achievement-card"><span class="icon">🇦🇷</span><h4>Historiador Argentino</h4><p>Completa el juego de historia (Argentina).</p></div>
                     <div class="achievement-card"><span class="icon">🤔</span><h4>Maestro del Ahorcado</h4><p>Gana una partida de Ahorcado.</p></div>
                     <div class="achievement-card"><span class="icon">❌⭕</span><h4>Campeón de Tres en Raya</h4><p>Gana una partida de Tres en Raya.</p></div>
                  </div>
@@ -2830,6 +2867,181 @@
             };
 
             displaySuggestion();
+        }
+
+        // --- Parents Panel (NEW) ---
+        function showParentsPanel() {
+            const parentsPanelContentArea = document.getElementById('parentsPanelContentArea');
+            const predefinedUsername = "padre"; // Predefined username
+            const predefinedPassword = "password123"; // Predefined password
+
+            // Function to display the login form
+            const displayLoginForm = (errorMessage = '') => {
+                parentsPanelContentArea.innerHTML = `
+                    <h3 class="section-title">Acceso para Padres</h3>
+                    <p class="section-description">Por favor, ingresa tus credenciales para acceder al panel.</p>
+                    <div class="flex flex-col items-center gap-4 mt-4 w-full max-w-xs mx-auto">
+                        <input type="text" id="parentUsername" placeholder="Usuario" class="p-2 border rounded-lg w-full">
+                        <input type="password" id="parentPassword" placeholder="Contraseña" class="p-2 border rounded-lg w-full">
+                        <button id="parentLoginButton" class="primary-button w-full">Iniciar Sesión</button>
+                        <p id="loginError" class="text-red-500 text-sm mt-2">${errorMessage}</p>
+                    </div>
+                    <div class="button-container mt-8">
+                        <button class="primary-button" data-target="mainCardsView">Volver al Inicio</button>
+                    </div>
+                `;
+
+                document.getElementById('parentLoginButton').onclick = () => {
+                    const usernameInput = document.getElementById('parentUsername').value;
+                    const passwordInput = document.getElementById('parentPassword').value;
+
+                    if (usernameInput === predefinedUsername && passwordInput === predefinedPassword) {
+                        displayParentsContent();
+                    } else {
+                        displayLoginForm("Usuario o contraseña incorrectos. Intenta de nuevo.");
+                    }
+                };
+            };
+
+            // Function to display the actual parents' panel content
+            const displayParentsContent = () => {
+                parentsPanelContentArea.innerHTML = `
+                    <h3 class="section-title">¡Bienvenido al Panel de Padres!</h3>
+                    <p class="section-description">Aquí puedes supervisar la actividad de tu hijo/a en AmigoBot.</p>
+                    
+                    <div class="flex flex-wrap justify-center gap-4 my-6">
+                        <button id="showGameProgressBtn" class="primary-button">Progreso de Juegos</button>
+                        <button id="showChatHistoryBtn" class="primary-button">Historial de Chat</button>
+                        <button id="showChildNotesBtn" class="primary-button">Notas del Niño</button>
+                        <button id="showChildRemindersBtn" class="primary-button">Recordatorios del Niño</button>
+                    </div>
+
+                    <div id="parentsDetailContent" class="text-left w-full max-w-2xl mx-auto p-4 bg-gray-50 rounded-lg shadow-inner min-h-[200px]">
+                        <p class="text-gray-600">Selecciona una opción para ver los detalles.</p>
+                    </div>
+
+                    <div class="button-container mt-8">
+                        <button id="parentLogoutButton" class="primary-button">Cerrar Sesión</button>
+                        <button class="primary-button" data-target="mainCardsView">Volver al Inicio</button>
+                    </div>
+                `;
+
+                // Event listeners for parent panel sub-sections
+                document.getElementById('showGameProgressBtn').onclick = displayGameProgress;
+                document.getElementById('showChatHistoryBtn').onclick = displayChatHistory;
+                document.getElementById('showChildNotesBtn').onclick = displayChildNotes;
+                document.getElementById('showChildRemindersBtn').onclick = displayChildReminders;
+                document.getElementById('parentLogoutButton').onclick = () => {
+                    displayLoginForm(); // Show login form on logout
+                };
+            };
+
+            // --- Parents Panel Detail Functions ---
+
+            function displayGameProgress() {
+                const detailContentArea = document.getElementById('parentsDetailContent');
+                const gameProgress = getStoredData(`amigobot_game_progress_${userId}`, []);
+
+                if (gameProgress.length === 0) {
+                    detailContentArea.innerHTML = `<h4 class="text-lg font-semibold mb-2">Progreso de Juegos</h4><p class="text-gray-600">Aún no hay datos de juegos.</p>`;
+                    return;
+                }
+
+                let summary = {};
+                gameProgress.forEach(game => {
+                    if (!summary[game.gameType]) {
+                        summary[game.gameType] = { total: 0, won: 0, lost: 0, drawn: 0 };
+                    }
+                    summary[game.gameType].total++;
+                    if (game.result === 'Ganado') summary[game.gameType].won++;
+                    else if (game.result === 'Perdido') summary[game.gameType].lost++;
+                    else if (game.result === 'Empate') summary[game.gameType].drawn++;
+                });
+
+                let summaryHtml = `<h4 class="text-lg font-semibold mb-2">Resumen de Juegos</h4><ul class="list-disc list-inside mb-4">`;
+                for (const gameType in summary) {
+                    summaryHtml += `<li><strong>${gameType}:</strong> Jugadas: ${summary[gameType].total}, Ganadas: ${summary[gameType].won}, Perdidas: ${summary[gameType].lost}`;
+                    if (summary[gameType].drawn > 0) summaryHtml += `, Empates: ${summary[gameType].drawn}`;
+                    summaryHtml += `</li>`;
+                }
+                summaryHtml += `</ul>`;
+
+                let historyHtml = `<h4 class="text-lg font-semibold mb-2 mt-4">Historial Detallado</h4><ul class="list-disc list-inside">`;
+                gameProgress.slice(-10).reverse().forEach(game => { // Show last 10 games
+                    const date = new Date(game.timestamp).toLocaleString();
+                    historyHtml += `<li><strong>${game.gameType}</strong> - ${game.result}`;
+                    if (game.score !== null) historyHtml += ` (Puntuación: ${game.score})`;
+                    historyHtml += ` el ${date}</li>`;
+                });
+                historyHtml += `</ul>`;
+
+                detailContentArea.innerHTML = summaryHtml + historyHtml;
+            }
+
+            function displayChatHistory() {
+                const detailContentArea = document.getElementById('parentsDetailContent');
+                const chatHistory = getStoredData(`amigobot_chat_history_${userId}`, []);
+
+                if (chatHistory.length === 0) {
+                    detailContentArea.innerHTML = `<h4 class="text-lg font-semibold mb-2">Historial de Chat</h4><p class="text-gray-600">Aún no hay historial de chat.</p>`;
+                    return;
+                }
+
+                let chatHtml = `<h4 class="text-lg font-semibold mb-2">Historial de Chat</h4>
+                                <p class="text-sm text-red-600 mb-4">
+                                    Nota: Este historial se guarda localmente en este navegador. Para una mayor privacidad y persistencia, 
+                                    se recomienda una solución de almacenamiento en la nube segura.
+                                </p>
+                                <div class="flex flex-col gap-3 max-h-96 overflow-y-auto p-2 border rounded-lg bg-white">`;
+                chatHistory.forEach(message => {
+                    const date = new Date(message.timestamp).toLocaleString();
+                    const senderClass = message.sender === 'user' ? 'bg-blue-100 text-blue-800 self-end' : 'bg-green-100 text-green-800 self-start';
+                    chatHtml += `<div class="p-2 rounded-lg max-w-[80%] ${senderClass}">
+                                    <p class="font-semibold">${message.sender === 'user' ? userName : 'AmigoBot'}</p>
+                                    <p>${message.text}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${date}</p>
+                                </div>`;
+                });
+                chatHtml += `</div>`;
+                detailContentArea.innerHTML = chatHtml;
+            }
+
+            function displayChildNotes() {
+                const detailContentArea = document.getElementById('parentsDetailContent');
+                const notes = getStoredData(`amigobot_notes_${userId}`, []);
+
+                if (notes.length === 0) {
+                    detailContentArea.innerHTML = `<h4 class="text-lg font-semibold mb-2">Notas del Niño</h4><p class="text-gray-600">El niño aún no ha creado notas.</p>`;
+                    return;
+                }
+
+                let notesHtml = `<h4 class="text-lg font-semibold mb-2">Notas del Niño</h4><ul class="list-disc list-inside">`;
+                notes.forEach(note => {
+                    notesHtml += `<li><strong>${note.title || 'Sin Título'}</strong>: <br>${note.content.substring(0, 150)}...</li>`; // Show snippet
+                });
+                notesHtml += `</ul>`;
+                detailContentArea.innerHTML = notesHtml;
+            }
+
+            function displayChildReminders() {
+                const detailContentArea = document.getElementById('parentsDetailContent');
+                const reminders = getStoredData(`amigobot_reminders_${userId}`, []);
+
+                if (reminders.length === 0) {
+                    detailContentArea.innerHTML = `<h4 class="text-lg font-semibold mb-2">Recordatorios del Niño</h4><p class="text-gray-600">El niño aún no ha creado recordatorios.</p>`;
+                    return;
+                }
+
+                let remindersHtml = `<h4 class="text-lg font-semibold mb-2">Recordatorios del Niño</h4><ul class="list-disc list-inside">`;
+                reminders.forEach(reminder => {
+                    remindersHtml += `<li><strong>${reminder.title || 'Sin Título'}</strong>: <br>${reminder.content.substring(0, 150)}...</li>`; // Show snippet
+                });
+                remindersHtml += `</ul>`;
+                detailContentArea.innerHTML = remindersHtml;
+            }
+
+            // Initial call: always show the login form first
+            displayLoginForm();
         }
 
     </script>
