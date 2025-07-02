@@ -527,9 +527,22 @@
                 box-shadow: none;
                 max-height: none;
             }
-            .header { padding: 16px; }
-            .header h1 { font-size: 2rem; }
-            .header p { font-size: 0.9rem; }
+            .header {
+                padding: 10px; /* Reduced padding */
+            }
+            .header h1 {
+                font-size: 1.8rem; /* Smaller font size */
+            }
+            .header p {
+                font-size: 0.8rem; /* Smaller font size */
+            }
+            #amigobotHeaderIconContainer {
+                width: 50px; /* Smaller icon container */
+                height: 50px;
+            }
+            #amigobotHeaderIconContainer span {
+                font-size: 2.5rem; /* Adjusted icon font size */
+            }
             .feature-cards-grid {
                 grid-template-columns: 1fr;
                 padding: 16px;
@@ -883,7 +896,7 @@
             const existingModal = document.querySelector('.message-box');
             if (existingModal) existingModal.remove();
             const existingOverlay = document.querySelector('.overlay');
-            if (existingOverlay) existingOverlay.remove();
+            if (existingOverlay) existing.remove();
 
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
@@ -1136,7 +1149,7 @@
             
             const chatHistory = [{ role: "user", parts: [{ text: systemInstruction }] }];
             const payload = { contents: chatHistory };
-            const apiKey ="AIzaSyD631XzOoVc0XGqNhlY2fUh8Bj05rblZG8"; // La clave API se proporcionará en tiempo de ejecución por Canvas
+            const apiKey = "AIzaSyD631XzOoVc0XGqNhlY2fUh8Bj05rblZG8";   // La clave API se proporcionará en tiempo de ejecución por Canvas
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {
@@ -1312,7 +1325,7 @@
             document.getElementById('gameHeaderTitle').textContent = "Juego de Memoria";
             // Different emoji sets and grid sizes based on education level
             const emojis = (userGradeLevel <= 6) ? 
-                ['😀', '😂', '😍', '🤩', '👍', '🐱', '�', '🍕'] : // 8 unique, 16 cards for 4x4
+                ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕'] : // 8 unique, 16 cards for 4x4
                 ['😀', '😂', '😍', '🤩', '👍', '🐱', '🐶', '🍕', '🚀', '🌟', '🎶', '🌈']; // 12 unique, 24 cards for 4x6 (or adapt)
             
             const gameEmojis = [...emojis, ...emojis].sort(() => 0.5 - Math.random());
@@ -2599,7 +2612,7 @@
                     <div class="achievement-card"><span class="icon">🧠</span><h4>Maestro de la Memoria</h4><p>Completa el juego de memoria.</p></div>
                     <div class="achievement-card"><span class="icon">➕</span><h4>Genio Matemático</h4><p>Completa el juego de matemáticas.</p></div>
                     <div class="achievement-card"><span class="icon">📚</span><h4>Historiador Novato</h4><p>Completa el juego de historia (General).</p></div>
-                    <div class="achievement-card"><span class="icon">🇦🇷</span><h4>Historiador Argentino</h4><p>Completa el juego de historia (Argentina).</p></div>
+                    <div class="achievement-card"><span class="icon">�🇷</span><h4>Historiador Argentino</h4><p>Completa el juego de historia (Argentina).</p></div>
                     <div class="achievement-card"><span class="icon">🤔</span><h4>Maestro del Ahorcado</h4><p>Gana una partida de Ahorcado.</p></div>
                     <div class="achievement-card"><span class="icon">❌⭕</span><h4>Campeón de Tres en Raya</h4><p>Gana una partida de Tres en Raya.</p></div>
                  </div>
