@@ -37,7 +37,7 @@ El campo de nombre ahora acepta únicamente:
 Letras
 
 Espacios
-
+LINEAS=3049
 Guiones (-)
 
 Apóstrofes (')
