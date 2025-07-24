@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AmigoBot</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">\
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-light: #d8b4fe; /* Morado 300 */
@@ -1102,9 +1102,10 @@
             const container = document.getElementById('chatMessagesContainer');
             const messageElement = document.createElement('div');
             messageElement.classList.add('message-bubble', sender === 'user' ? 'user-message' : 'bot-message');
-            
-            // Reemplazar saltos de línea con <br> para HTML
-            const formattedText = text.replace(/\n/g, '<br>');
+
+            // Procesar el texto para negritas y otros formatos
+            let processedText = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            const formattedText = processedText.replace(/\n/g, '<br>');
             messageElement.innerHTML = `<span>${formattedText}</span>`;
 
             if (sender === 'bot') {
